@@ -433,6 +433,85 @@ input[type=file]#foto-input{display:none;}
 
 <div class="toast" id="toast"></div>
 
+<script type="module">
+// ── FIREBASE ──────────────────────────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBdjU-n9VUMUGVzcyKHf_S5HN11zKxjm0g",
+  authDomain: "flotafrr.firebaseapp.com",
+  projectId: "flotafrr",
+  storageBucket: "flotafrr.firebasestorage.app",
+  messagingSenderId: "326550546621",
+  appId: "1:326550546621:web:699dc4e7e9dda5e0fa2fd4"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const DOC = doc(db, 'flota', 'datos');
+
+// Exponer funciones de Firebase al scope global
+window.fbGuardar = async function(datos) {
+  try {
+    // Registros sin fotos para Firestore (fotos se quedan en localStorage por tamaño)
+    const registrosSinFotos = datos.registros.map(r => ({...r, fotos:[]}));
+    await setDoc(DOC, {
+      busetas: datos.busetas,
+      registros: registrosSinFotos,
+      itemsExtra: datos.itemsExtra,
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e) { console.warn('Firebase save error:', e); }
+};
+
+window.fbEscuchar = function(callback) {
+  onSnapshot(DOC, (snap) => {
+    if(snap.exists()) {
+      const d = snap.data();
+      callback(d);
+    }
+  });
+};
+
+window.fbCargar = async function() {
+  try {
+    const snap = await getDoc(DOC);
+    if(snap.exists()) return snap.data();
+  } catch(e) { console.warn('Firebase load error:', e); }
+  return null;
+};
+
+// Iniciar escucha en tiempo real una vez que la app esté lista
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if(typeof window.fbEscuchar === 'function') {
+      window.fbEscuchar((datos) => {
+        if(!datos) return;
+        // Solo actualizar si los datos de Firebase son más recientes
+        const local = localStorage.getItem('frr_updated') || '';
+        if(datos.updatedAt && datos.updatedAt > local) {
+          // Preservar fotos locales al mergear
+          const fotosMap = {};
+          (window._registros||[]).forEach(r => { if(r.fotos&&r.fotos.length) fotosMap[r.id]=r.fotos; });
+          window._busetas   = datos.busetas   || window._busetas;
+          window._itemsExtra= datos.itemsExtra|| window._itemsExtra;
+          window._registros = (datos.registros||[]).map(r => ({...r, fotos: fotosMap[r.id]||r.fotos||[]}));
+          localStorage.setItem('frr_busetas',   JSON.stringify(window._busetas));
+          localStorage.setItem('frr_registros', JSON.stringify(window._registros));
+          localStorage.setItem('frr_items',     JSON.stringify(window._itemsExtra));
+          localStorage.setItem('frr_updated',   datos.updatedAt);
+          // Refrescar UI
+          if(typeof renderDashboard==='function') renderDashboard();
+          if(typeof renderHistorial==='function') renderHistorial('todos');
+          window._showSyncToast && window._showSyncToast();
+        }
+      });
+    }
+  }, 2000);
+});
+</script>
+
 <script>
 // ── DATOS ─────────────────────────────────────────────────────────────────────
 const ITEMS_DEFAULT = ['Cambio de aceite y filtro','Revisión de frenos','Nivel de líquidos','Presión y estado de llantas','Revisión de batería','Filtro de aire','Correas (alternador/distribución)','Luces','Limpiabrisas y bocina','Motor','Transmisión','Sistema eléctrico'];
@@ -440,11 +519,19 @@ const ITEMS_DEFAULT = ['Cambio de aceite y filtro','Revisión de frenos','Nivel 
 let busetas   = JSON.parse(localStorage.getItem('frr_busetas')   || 'null') || [{id:'642',modelo:'Buseta · 2018'},{id:'634',modelo:'Buseta · 2019'},{id:'680',modelo:'Buseta · 2020'}];
 let registros = JSON.parse(localStorage.getItem('frr_registros') || '[]');
 let itemsExtra = JSON.parse(localStorage.getItem('frr_items')    || '[]');
-let fotosTemp = []; // base64 fotos del form actual
+let fotosTemp = [];
 
-function saveBusetas(){ localStorage.setItem('frr_busetas', JSON.stringify(busetas)); }
-function saveRegistros(){ localStorage.setItem('frr_registros', JSON.stringify(registros)); }
-function saveItems(){ localStorage.setItem('frr_items', JSON.stringify(itemsExtra)); }
+window._busetas=busetas; window._registros=registros; window._itemsExtra=itemsExtra;
+window._showSyncToast=function(){ toast('↔ Sincronizado con la nube'); };
+
+function syncFirebase(){
+  const ts=new Date().toISOString();
+  localStorage.setItem('frr_updated',ts);
+  if(typeof window.fbGuardar==='function') window.fbGuardar({busetas,registros,itemsExtra});
+}
+function saveBusetas(){ localStorage.setItem('frr_busetas',JSON.stringify(busetas)); window._busetas=busetas; syncFirebase(); }
+function saveRegistros(){ localStorage.setItem('frr_registros',JSON.stringify(registros)); window._registros=registros; syncFirebase(); }
+function saveItems(){ localStorage.setItem('frr_items',JSON.stringify(itemsExtra)); window._itemsExtra=itemsExtra; syncFirebase(); }
 
 function todosItems(){ return [...ITEMS_DEFAULT, ...itemsExtra].sort((a,b)=>a.localeCompare(b,'es')); }
 
