@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a1628">
+<title>FlotaFRR</title>
+<link rel="manifest" href="manifest.json">
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script>
+
+<style>
+:root{--bg:#0a1628;--bg2:#0f1f3a;--bg3:#162847;--card:#1a2f52;--accent:#00d4a0;--warn:#f5a623;--danger:#e05555;--text:#e8eef8;--text2:#8a9bb8;--text3:#5a7090;--border:rgba(255,255,255,0.07);--radius:16px;--radius-sm:10px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;position:relative;}
+.topbar{padding:52px 20px 16px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-logo{font-size:20px;font-weight:600;color:var(--accent);letter-spacing:-0.5px;}
+.topbar-logo span{color:var(--text2);font-weight:300;}
+.topbar-badge{background:var(--accent);color:var(--bg);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 100px;-webkit-overflow-scrolling:touch;}
+.scroll::-webkit-scrollbar{display:none;}
+.nav{position:absolute;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom));}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;cursor:pointer;color:var(--text3);transition:color 0.2s;}
+.nav-item.active{color:var(--accent);}
+.nav-item svg{width:22px;height:22px;}
+.nav-item span{font-size:10px;font-weight:500;}
+.screen{display:none;}
+.screen.active{display:block;}
+.sec-title{font-size:13px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px;}
+.kpi-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
+.kpi-box{background:var(--card);border-radius:var(--radius-sm);padding:12px 10px;}
+.kpi-label{font-size:10px;color:var(--text3);margin-bottom:4px;}
+.kpi-val{font-size:20px;font-weight:600;font-family:'Courier New',Courier,monospace;}
+.kpi-val.green{color:var(--accent);}
+.kpi-val.warn{color:var(--warn);}
+.kpi-val.red{color:var(--danger);}
+.kpi-unit{font-size:10px;color:var(--text3);margin-top:2px;}
+.vcard{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;position:relative;overflow:hidden;}
+.vcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);border-radius:var(--radius) var(--radius) 0 0;}
+.vcard.warn::before{background:var(--warn);}
+.vcard.danger::before{background:var(--danger);}
+.vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.vcard-name{font-size:18px;font-weight:600;}
+.vcard-model{font-size:12px;color:var(--text3);margin-top:2px;}
+.vcard-status{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;}
+.status-ok{background:rgba(0,212,160,0.15);color:var(--accent);}
+.status-warn{background:rgba(245,166,35,0.15);color:var(--warn);}
+.status-bad{background:rgba(224,85,85,0.15);color:var(--danger);}
+.vcard-row{display:flex;gap:8px;}
+.vcard-stat{flex:1;background:var(--bg3);border-radius:8px;padding:8px 10px;}
+.vcard-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.vcard-stat-val{font-size:13px;font-weight:600;font-family:'Courier New',Courier,monospace;}
+.vcard-alerts{margin-top:10px;}
+.alert-chip{display:inline-flex;align-items:center;font-size:11px;background:rgba(245,166,35,0.1);color:var(--warn);border:1px solid rgba(245,166,35,0.2);border-radius:20px;padding:4px 10px;margin:3px 3px 0 0;}
+.alert-chip.red{background:rgba(224,85,85,0.1);color:var(--danger);border-color:rgba(224,85,85,0.2);}
+.form-card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.form-title{font-size:15px;font-weight:600;margin-bottom:14px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:500;}
+.field select,.field input,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;appearance:none;outline:none;transition:border-color 0.2s;}
+.field select:focus,.field input:focus,.field textarea:focus{border-color:var(--accent);}
+.field select option{background:var(--bg2);}
+.field textarea{resize:none;height:72px;line-height:1.5;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn-primary{width:100%;background:var(--accent);color:var(--bg);font-size:15px;font-weight:600;padding:14px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;transition:opacity 0.2s;margin-top:4px;}
+.btn-primary:active{opacity:0.8;}
+.btn-ghost{width:100%;background:transparent;color:var(--text2);font-size:14px;font-weight:500;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;margin-top:6px;}
+.btn-sm{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--text2);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;}
+.btn-sm:active{opacity:0.7;}
+/* ITEM SELECTOR */
+.item-select-wrap{position:relative;}
+.item-select-wrap select{padding-right:80px;}
+.item-custom-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:var(--accent);background:rgba(0,212,160,0.1);border:none;border-radius:6px;padding:4px 8px;cursor:pointer;white-space:nowrap;}
+/* FOTOS */
+.foto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.foto-thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--bg3);cursor:pointer;}
+.foto-thumb img{width:100%;height:100%;object-fit:cover;}
+.foto-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(224,85,85,0.9);border:none;color:#fff;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.foto-add{aspect-ratio:1;border-radius:10px;border:1.5px dashed var(--text3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:var(--text3);font-size:11px;}
+.foto-add svg{width:22px;height:22px;}
+input[type=file]#foto-input{display:none;}
+/* HISTORIAL */
+.hist-item{background:var(--card);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;cursor:pointer;transition:opacity 0.2s;}
+.hist-item:active{opacity:0.7;}
+.hist-main{display:flex;gap:12px;align-items:flex-start;}
+.hist-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hist-icon.prev{background:rgba(0,212,160,0.15);}
+.hist-icon.corr{background:rgba(224,85,85,0.15);}
+.hist-icon.prev svg{color:var(--accent);}
+.hist-icon.corr svg{color:var(--danger);}
+.hist-body{flex:1;}
+.hist-title{font-size:14px;font-weight:600;}
+.hist-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.hist-right{text-align:right;flex-shrink:0;}
+.hist-cost{font-size:14px;font-weight:600;font-family:'Courier New',Courier,monospace;}
+.hist-date{font-size:11px;color:var(--text3);margin-top:2px;}
+.hist-fotos{display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:2px;}
+.hist-fotos::-webkit-scrollbar{display:none;}
+.hist-foto{width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;}
+/* DETALLE */
+.det-overlay{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column;}
+.det-overlay.open{display:flex;}
+.det-topbar{display:flex;align-items:center;justify-content:space-between;padding:52px 16px 12px;flex-shrink:0;}
+.det-title{font-size:16px;font-weight:600;}
+.det-close{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.det-scroll{flex:1;overflow-y:auto;padding:0 16px 40px;}
+.det-fotos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;}
+.det-foto{border-radius:12px;width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;}
+.det-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.det-row span:first-child{color:var(--text3);}
+.det-row span:last-child{font-weight:500;text-align:right;max-width:60%;}
+/* FOTO FULLSCREEN */
+.fs-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:300;display:none;align-items:center;justify-content:center;}
+.fs-overlay.open{display:flex;}
+.fs-overlay img{max-width:100%;max-height:100%;object-fit:contain;}
+.fs-close{position:absolute;top:20px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* COSTOS */
+.cpv-card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.cpv-big{font-size:36px;font-weight:600;color:var(--accent);font-family:'Courier New',Courier,monospace;}
+.cpv-label{font-size:12px;color:var(--text3);margin-top:4px;}
+.cpv-breakdown{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+.cpv-row2{display:flex;justify-content:space-between;font-size:13px;}
+.cpv-row2 span:first-child{color:var(--text2);}
+.cpv-row2 span:last-child{font-weight:600;font-family:'Courier New',Courier,monospace;}
+.divider{height:1px;background:var(--border);margin:4px 0;}
+.bar-wrap{background:var(--bg3);border-radius:6px;height:6px;margin-top:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:6px;background:var(--accent);}
+.bar-fill.warn{background:var(--warn);}
+/* CONFIG */
+.config-bus-item{background:var(--card);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.config-bus-num{font-size:16px;font-weight:600;flex:1;}
+.config-bus-model{font-size:12px;color:var(--text3);}
+.config-bus-actions{display:flex;gap:8px;}
+.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.icon-btn.del{color:var(--danger);border-color:rgba(224,85,85,0.3);}
+.icon-btn.edit{color:var(--accent);border-color:rgba(0,212,160,0.3);}
+/* ITEMS CONFIG */
+.item-list-wrap{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.item-list-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+.item-list-item:last-child{border-bottom:none;}
+.item-list-name{font-size:14px;}
+.item-list-badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(0,212,160,0.1);color:var(--accent);}
+.item-list-badge.custom{background:rgba(245,166,35,0.1);color:var(--warn);}
+/* CHIPS */
+.chips{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;border:1px solid var(--border);color:var(--text3);cursor:pointer;background:var(--card);}
+.chip.active{background:var(--accent);color:var(--bg);border-color:var(--accent);}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg2);border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:480px;transform:translateY(100%);transition:transform 0.3s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:18px;}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:var(--bg);font-size:13px;font-weight:600;padding:10px 20px;border-radius:20px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty p{font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Flota<span>FRR</span></div>
+    <div class="topbar-badge" id="alert-badge" onclick="goScreen('alertas', document.querySelector('.nav-item[data-screen=alertas]') || {classList:{add:()=>{},remove:()=>{}}})" style="cursor:pointer;">0 alertas</div>
+  </div>
+
+  <div class="scroll">
+
+    <!-- DASHBOARD -->
+    <div class="screen active" id="screen-dashboard">
+      <div class="sec-title">Resumen de flota</div>
+      <div class="kpi-strip">
+        <div class="kpi-box"><div class="kpi-label">Disponibilidad</div><div class="kpi-val green" id="kpi-disp">--</div><div class="kpi-unit">promedio</div></div>
+        <div class="kpi-box"><div class="kpi-label">Gasto mes</div><div class="kpi-val" id="kpi-gasto">$0</div><div class="kpi-unit">total flota</div></div>
+        <div class="kpi-box"><div class="kpi-label">Correctivos</div><div class="kpi-val" id="kpi-corr">0</div><div class="kpi-unit">este mes</div></div>
+      </div>
+      <div class="sec-title">Mis busetas</div>
+      <div id="vcards-container"></div>
+    </div>
+
+    <!-- REGISTRAR -->
+    <div class="screen" id="screen-registrar">
+      <div class="sec-title">Nuevo mantenimiento</div>
+      <div class="form-card">
+        <div class="form-title">Registrar servicio</div>
+        <div class="field"><label>Buseta</label><select id="f-buseta"></select></div>
+        <div class="field"><label>Tipo</label>
+          <select id="f-tipo"><option value="preventivo">Preventivo</option><option value="correctivo">Correctivo</option></select>
+        </div>
+        <div class="field">
+          <label>Ítem</label>
+          <div class="item-select-wrap">
+            <select id="f-item"></select>
+            <button class="item-custom-btn" onclick="abrirModalItem()">+ Nuevo ítem</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Fecha</label><input type="date" id="f-fecha"></div>
+          <div class="field"><label>Costo ($)</label><input type="number" id="f-costo" placeholder="0"></div>
+        </div>
+        <div class="field"><label>Taller / Mecánico</label><input type="text" id="f-taller" placeholder="Nombre del taller"></div>
+        <div class="field"><label>Próximo servicio</label><input type="date" id="f-proximo"></div>
+        <div class="field"><label>Observaciones</label><textarea id="f-obs" placeholder="Opcional..."></textarea></div>
+
+        <!-- FOTOS -->
+        <div class="field">
+          <label>Fotos del mantenimiento</label>
+          <div class="foto-grid" id="foto-preview-grid">
+            <div class="foto-add" onclick="document.getElementById('foto-input').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h2l2-3h6l2 3h2"/></svg>
+              <span>Agregar foto</span>
+            </div>
+          </div>
+          <input type="file" id="foto-input" accept="image/*" multiple onchange="agregarFotos(event)">
+        </div>
+
+        <button class="btn-primary" onclick="guardarManto()">Guardar registro</button>
+      </div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="screen" id="screen-alertas">
+      <div class="sec-title">Alertas de servicio</div>
+      <div id="notif-btn-wrap" style="margin-bottom:12px;"></div>
+      <div id="alertas-lista"></div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="screen" id="screen-historial">
+      <div class="sec-title">Historial de mantenimientos</div>
+      <div class="chips" id="hist-chips"></div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- COSTOS -->
+    <div class="screen" id="screen-costos">
+      <div class="sec-title">Costo por viaje</div>
+      <div class="form-card">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Los valores se guardan automáticamente.</div>
+        <div class="field-row">
+          <div class="field"><label>Viajes / día</label><input type="number" id="c-viajes" min="1" max="20" oninput="guardarCostos();calcCPV()"></div>
+          <div class="field"><label>Días hábiles / mes</label><input type="number" id="c-dias" min="1" max="31" oninput="guardarCostos();calcCPV()"></div>
+        </div>
+        <div class="field"><label>Tarifa cobrada por viaje ($) — aplica a todas</label><input type="number" id="c-tarifa" oninput="guardarCostos();calcCPV()"></div>
+        <div id="c-tarifas-ind"></div>
+        <button class="btn-ghost" style="margin-top:4px;font-size:13px;" onclick="toggleTarifasInd()">Tarifa diferente por buseta</button>
+      </div>
+      <div id="cpv-busetas"></div>
+    </div>
+
+    <!-- SEGUIMIENTO -->
+    <div class="screen" id="screen-seguimiento">
+      <div class="sec-title">Seguimiento mensual</div>
+      <div class="form-card" style="padding:12px 14px;margin-bottom:10px;">
+        <div class="field" style="margin-bottom:10px;">
+          <label>Buseta</label>
+          <select id="seg-buseta" onchange="renderSeguimiento()"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Mes</label>
+          <input type="month" id="seg-mes" onchange="renderSeguimiento()">
+        </div>
+      </div>
+      <div id="seg-resumen"></div>
+      <div id="seg-tabla"></div>
+    </div>
+
+    <!-- HISTORIAL ÍTEM -->
+    <div class="screen" id="screen-item-hist">
+      <div class="sec-title">Historial por ítem</div>
+      <div class="form-card" style="padding:12px 14px;margin-bottom:10px;">
+        <div class="field" style="margin-bottom:10px;">
+          <label>Buseta</label>
+          <select id="ih-buseta" onchange="renderItemHist()"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Ítem</label>
+          <select id="ih-item" onchange="renderItemHist()"></select>
+        </div>
+      </div>
+      <div id="ih-resumen"></div>
+      <div id="ih-lista"></div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="screen" id="screen-config">
+      <div class="sec-title">Mis busetas</div>
+      <div id="config-list"></div>
+      <button class="btn-primary" onclick="abrirModalBuseta()">+ Agregar buseta</button>
+
+      <div class="sec-title" style="margin-top:28px">Ítems de mantenimiento</div>
+      <div class="item-list-wrap" id="items-config-list"></div>
+      <button class="btn-primary" onclick="abrirModalItem()">+ Agregar ítem</button>
+
+      <div class="sec-title" style="margin-top:28px">Copia de seguridad</div>
+      <div style="background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">Exporta tus datos para hacer una copia o pasarlos a otro celular. El archivo incluye todas las busetas, registros e ítems personalizados.</div>
+        <button class="btn-primary" onclick="exportarDatos()">Exportar datos (.json)</button>
+        <div style="height:10px"></div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6;">Para restaurar en este o en otro celular, selecciona el archivo exportado anteriormente.</div>
+        <button class="btn-ghost" onclick="document.getElementById('import-input').click()">Importar datos desde archivo</button>
+        <input type="file" id="import-input" accept=".json" style="display:none" onchange="importarDatos(event)">
+        <div id="import-msg" style="font-size:12px;margin-top:10px;display:none;padding:10px 12px;border-radius:8px;"></div>
+      </div>
+      <div style="height:16px"></div>
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <div class="nav-item active" onclick="goScreen('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Inicio</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('registrar',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Registrar</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('historial',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4"/><polyline points="3 3 3 7 7 7"/></svg>
+      <span>Historial</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('seguimiento',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+      <span>Mensual</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('item-hist',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      <span>Por ítem</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('alertas',this)" data-screen="alertas" style="position:relative;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alertas</span>
+      <div id="nav-alert-dot" style="display:none;position:absolute;top:6px;right:calc(50% - 14px);width:8px;height:8px;border-radius:50%;background:var(--danger);"></div>
+    </div>
+    <div class="nav-item" onclick="goScreen('costos',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>Costos</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('config',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Config</span>
+    </div>
+  </nav>
+</div>
+
+<!-- MODAL EDITAR MANTENIMIENTO -->
+<div class="modal-overlay" id="modal-edit-manto" onclick="cerrarSi(event,'modal-edit-manto')">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-title">Editar mantenimiento</div>
+    <input type="hidden" id="em-id">
+    <div class="field"><label>Buseta</label><select id="em-buseta"></select></div>
+    <div class="field"><label>Tipo</label>
+      <select id="em-tipo"><option value="preventivo">Preventivo</option><option value="correctivo">Correctivo</option></select>
+    </div>
+    <div class="field"><label>Ítem</label><select id="em-item"></select></div>
+    <div class="field-row">
+      <div class="field"><label>Fecha</label><input type="date" id="em-fecha"></div>
+      <div class="field"><label>Costo ($)</label><input type="number" id="em-costo"></div>
+    </div>
+    <div class="field"><label>Taller / Mecánico</label><input type="text" id="em-taller"></div>
+    <div class="field"><label>Próximo servicio</label><input type="date" id="em-proximo"></div>
+    <div class="field"><label>Observaciones</label><textarea id="em-obs"></textarea></div>
+    <button class="btn-primary" onclick="guardarEdicionManto()">Guardar cambios</button>
+    <button class="btn-ghost" style="color:var(--danger);border-color:rgba(224,85,85,0.3);" onclick="eliminarManto()">Eliminar registro</button>
+    <button class="btn-ghost" onclick="cerrarModal('modal-edit-manto')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL BUSETA -->
+<div class="modal-overlay" id="modal-buseta" onclick="cerrarSi(event,'modal-buseta')">
+  <div class="modal">
+    <div class="modal-title" id="modal-buseta-title">Nueva buseta</div>
+    <input type="hidden" id="m-editid">
+    <div class="field"><label>Número / Nombre</label><input type="text" id="m-nombre" placeholder="Ej: 642"></div>
+    <div class="field"><label>Modelo (opcional)</label><input type="text" id="m-modelo" placeholder="Ej: Buseta 2020"></div>
+    <button class="btn-primary" onclick="guardarBuseta()">Guardar</button>
+    <button class="btn-ghost" onclick="cerrarModal('modal-buseta')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL ÍTEM -->
+<div class="modal-overlay" id="modal-item" onclick="cerrarSi(event,'modal-item')">
+  <div class="modal">
+    <div class="modal-title">Nuevo ítem de mantenimiento</div>
+    <div class="field"><label>Nombre del ítem</label><input type="text" id="m-item-nombre" placeholder="Ej: Revisión de suspensión"></div>
+    <button class="btn-primary" onclick="guardarItem()">Agregar</button>
+    <button class="btn-ghost" onclick="cerrarModal('modal-item')">Cancelar</button>
+  </div>
+</div>
+
+<!-- DETALLE REGISTRO -->
+<div class="det-overlay" id="det-overlay">
+  <div class="det-topbar">
+    <div class="det-title" id="det-title">Detalle</div>
+    <button class="det-close" onclick="cerrarDetalle()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="det-scroll" id="det-content"></div>
+</div>
+
+<!-- FOTO FULLSCREEN -->
+<div class="fs-overlay" id="fs-overlay" onclick="cerrarFS()">
+  <img id="fs-img" src="">
+  <button class="fs-close" onclick="cerrarFS()">×</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATOS ─────────────────────────────────────────────────────────────────────
+const ITEMS_DEFAULT = ['Cambio de aceite y filtro','Revisión de frenos','Nivel de líquidos','Presión y estado de llantas','Revisión de batería','Filtro de aire','Correas (alternador/distribución)','Luces','Limpiabrisas y bocina','Motor','Transmisión','Sistema eléctrico'];
+
+let busetas   = JSON.parse(localStorage.getItem('frr_busetas')   || 'null') || [{id:'642',modelo:'Buseta · 2018'},{id:'634',modelo:'Buseta · 2019'},{id:'680',modelo:'Buseta · 2020'}];
+let registros = JSON.parse(localStorage.getItem('frr_registros') || '[]');
+let itemsExtra = JSON.parse(localStorage.getItem('frr_items')    || '[]');
+let fotosTemp = []; // base64 fotos del form actual
+
+function saveBusetas(){ localStorage.setItem('frr_busetas', JSON.stringify(busetas)); }
+function saveRegistros(){ localStorage.setItem('frr_registros', JSON.stringify(registros)); }
+function saveItems(){ localStorage.setItem('frr_items', JSON.stringify(itemsExtra)); }
+
+function todosItems(){ return [...ITEMS_DEFAULT, ...itemsExtra].sort((a,b)=>a.localeCompare(b,'es')); }
+
+function fmt(n){ if(n>=1000000) return '$'+(n/1000000).toFixed(1)+'M'; if(n>=1000) return '$'+Math.round(n/1000)+'k'; return '$'+Math.round(n).toLocaleString('es-CO'); }
+function fmtFull(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+// ── NAVEGACIÓN ─────────────────────────────────────────────────────────────────
+function goScreen(name,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='historial'){ renderHistChips(); renderHistorial('todos'); }
+  if(name==='alertas'){ renderAlertas(); }
+  if(name==='item-hist'){ refreshIHSelects(); renderItemHist(); }
+  if(name==='seguimiento'){ refreshSegSelects(); renderSeguimiento(); }
+  if(name==='costos'){ cargarCostos(); calcCPV(); }
+  if(name==='config'){ renderConfig(); renderItemsConfig(); }
+  if(name==='registrar'){ refreshSelects(); resetFotos(); }
+}
+
+// ── SELECTS ───────────────────────────────────────────────────────────────────
+function refreshSelects(){
+  const opts = busetas.map(b=>`<option value="${b.id}">${b.id}</option>`).join('');
+  document.getElementById('f-buseta').innerHTML = opts;
+  if(document.getElementById('em-buseta')) document.getElementById('em-buseta').innerHTML = opts;
+  const itemOpts = todosItems().map(i=>`<option>${i}</option>`).join('');
+  document.getElementById('f-item').innerHTML = itemOpts;
+  if(document.getElementById('em-item')) document.getElementById('em-item').innerHTML = itemOpts;
+}
+
+// ── FOTOS ──────────────────────────────────────────────────────────────────────
+function resetFotos(){ fotosTemp=[]; renderFotoGrid(); }
+
+function agregarFotos(e){
+  const files=[...e.target.files];
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{ fotosTemp.push(ev.target.result); renderFotoGrid(); };
+    r.readAsDataURL(f);
+  });
+  e.target.value='';
+}
+
+function renderFotoGrid(){
+  const grid=document.getElementById('foto-preview-grid');
+  grid.innerHTML = fotosTemp.map((src,i)=>
+    `<div class="foto-thumb" onclick="verFS('${src}')">
+      <img src="${src}">
+      <button class="foto-del" onclick="event.stopPropagation();elimFotoTemp(${i})">×</button>
+    </div>`
+  ).join('')
+  + `<div class="foto-add" onclick="document.getElementById('foto-input').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h2l2-3h6l2 3h2"/></svg>
+      <span style="font-size:11px;color:var(--text3)">Foto</span>
+    </div>`;
+}
+
+function elimFotoTemp(i){ fotosTemp.splice(i,1); renderFotoGrid(); }
+
+// ── GUARDAR MANTENIMIENTO ─────────────────────────────────────────────────────
+function guardarManto(){
+  const r={
+    id:Date.now(),
+    buseta:document.getElementById('f-buseta').value,
+    tipo:document.getElementById('f-tipo').value,
+    item:document.getElementById('f-item').value,
+    fecha:document.getElementById('f-fecha').value,
+    costo:parseInt(document.getElementById('f-costo').value)||0,
+    taller:document.getElementById('f-taller').value||'—',
+    proximo:document.getElementById('f-proximo').value||'',
+    obs:document.getElementById('f-obs').value||'',
+    fotos:[...fotosTemp],
+  };
+  if(!r.fecha){ toast('Ingresa la fecha'); return; }
+  registros.unshift(r);
+
+  // Intentar guardar — si falla por espacio, guardar sin fotos
+  try {
+    saveRegistros();
+  } catch(e) {
+    if(e.name==='QuotaExceededError' && r.fotos.length){
+      toast('Guardado sin fotos (espacio lleno)');
+      r.fotos=[];
+      registros[0]=r;
+      try { saveRegistros(); } catch(e2){ toast('Error al guardar'); registros.shift(); return; }
+    } else {
+      toast('Error al guardar'); registros.shift(); return;
+    }
+  }
+
+  document.getElementById('f-costo').value='';
+  document.getElementById('f-taller').value='';
+  document.getElementById('f-proximo').value='';
+  document.getElementById('f-obs').value='';
+  document.getElementById('f-fecha').valueAsDate=new Date();
+  resetFotos();
+  toast('Registro guardado ✓');
+
+  // Navegar al dashboard para confirmar visualmente
+  const navInicio = document.querySelector('.nav-item[onclick*="dashboard"]');
+  if(navInicio) goScreen('dashboard', navInicio);
+  else renderDashboard();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function getAlertas(){
+  const alertas=[], hoy=new Date();
+  busetas.forEach(b=>{
+    const aceites=registros.filter(r=>r.buseta===b.id&&r.item.includes('aceite')).sort((a,z)=>z.fecha.localeCompare(a.fecha));
+    if(!aceites.length){ alertas.push({buseta:b.id,msg:'Sin registro de aceite',nivel:'warn'}); }
+    else{ const d=Math.floor((hoy-new Date(aceites[0].fecha))/86400000); if(d>45) alertas.push({buseta:b.id,msg:`Aceite: ${d} días`,nivel:'rojo'}); else if(d>35) alertas.push({buseta:b.id,msg:`Aceite: ${d} días`,nivel:'warn'}); }
+    registros.filter(r=>r.buseta===b.id&&r.proximo).forEach(r=>{ const diff=Math.floor((new Date(r.proximo)-hoy)/86400000); if(diff<0) alertas.push({buseta:b.id,msg:`Vencido: ${r.item.slice(0,16)}`,nivel:'rojo'}); else if(diff<=5) alertas.push({buseta:b.id,msg:`Próximo: ${r.item.slice(0,16)}`,nivel:'warn'}); });
+  });
+  return alertas;
+}
+
+function renderDashboard(){
+  const mes=new Date().toISOString().slice(0,7);
+  const regMes=registros.filter(r=>r.fecha.startsWith(mes));
+  const gastoTotal=regMes.reduce((s,r)=>s+r.costo,0);
+  const correctivos=regMes.filter(r=>r.tipo==='correctivo').length;
+  const dispProm=busetas.length?busetas.map(b=>{ const c=regMes.filter(r=>r.buseta===b.id&&r.tipo==='correctivo').length; return Math.max(0,((30-c)/30)*100); }).reduce((a,b)=>a+b,0)/busetas.length:100;
+  document.getElementById('kpi-disp').textContent=dispProm.toFixed(0)+'%';
+  document.getElementById('kpi-disp').className='kpi-val '+(dispProm>=90?'green':dispProm>=80?'warn':'red');
+  document.getElementById('kpi-gasto').textContent=fmt(gastoTotal);
+  document.getElementById('kpi-corr').textContent=correctivos;
+  document.getElementById('kpi-corr').className='kpi-val '+(correctivos===0?'green':correctivos<=2?'warn':'red');
+  const alertas=getAlertas();
+  actualizarBadge();
+  document.getElementById('vcards-container').innerHTML=busetas.map(b=>{
+    const bReg=regMes.filter(r=>r.buseta===b.id);
+    const gasto=bReg.reduce((s,r)=>s+r.costo,0);
+    const corr=bReg.filter(r=>r.tipo==='correctivo').length;
+    const prev=bReg.filter(r=>r.tipo==='preventivo').length;
+    const disp=Math.max(0,((30-corr)/30)*100);
+    const bA=alertas.filter(a=>a.buseta===b.id);
+    const estado=bA.some(a=>a.nivel==='rojo')?'danger':bA.length>0?'warn':'';
+    const stTxt=estado==='danger'?'Atención':estado==='warn'?'Revisar':'Operativa';
+    const stCls=estado==='danger'?'status-bad':estado==='warn'?'status-warn':'status-ok';
+    return `<div class="vcard ${estado}"><div class="vcard-top"><div><div class="vcard-name">${b.id}</div><div class="vcard-model">${b.modelo}</div></div><div class="vcard-status ${stCls}">${stTxt}</div></div>
+    <div class="vcard-row"><div class="vcard-stat"><div class="vcard-stat-label">Disponibilidad</div><div class="vcard-stat-val">${disp.toFixed(0)}%</div></div><div class="vcard-stat"><div class="vcard-stat-label">Gasto mes</div><div class="vcard-stat-val">${fmt(gasto)}</div></div><div class="vcard-stat"><div class="vcard-stat-label">Prev/Corr</div><div class="vcard-stat-val">${prev}/${corr}</div></div></div>
+    ${bA.length?`<div class="vcard-alerts">${bA.map(a=>`<span class="alert-chip ${a.nivel==='rojo'?'red':''}">${a.msg}</span>`).join('')}</div>`:''}</div>`;
+  }).join('')||'<div class="empty"><p>No hay busetas. Ve a Config.</p></div>';
+}
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
+function renderHistChips(){
+  document.getElementById('hist-chips').innerHTML=
+    `<div class="chip active" onclick="filtrarHist('todos',this)">Todos</div>`
+    +busetas.map(b=>`<div class="chip" onclick="filtrarHist('${b.id}',this)">${b.id}</div>`).join('')
+    +`<div class="chip" onclick="filtrarHist('preventivo',this)">Preventivos</div><div class="chip" onclick="filtrarHist('correctivo',this)">Correctivos</div>`;
+}
+function filtrarHist(f,el){ document.querySelectorAll('#hist-chips .chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); renderHistorial(f); }
+
+function renderHistorial(f){
+  let lista=[...registros];
+  if(f!=='todos') lista=lista.filter(r=>r.buseta===f||r.tipo===f);
+  const cont=document.getElementById('hist-list');
+  if(!lista.length){ cont.innerHTML=`<div class="empty"><p>No hay registros aún.</p></div>`; return; }
+  cont.innerHTML=lista.map(r=>{
+    const esPrev=r.tipo==='preventivo';
+    const icon=esPrev
+      ?`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`
+      :`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const fotos=r.fotos&&r.fotos.length?`<div class="hist-fotos">${r.fotos.map(src=>`<img class="hist-foto" src="${src}" onclick="event.stopPropagation();verFS('${src}')">`).join('')}</div>`:'';
+    return `<div class="hist-item" onclick="verDetalle(${r.id})">
+      <div class="hist-main"><div class="hist-icon ${esPrev?'prev':'corr'}">${icon}</div>
+      <div class="hist-body"><div class="hist-title">${r.item}</div><div class="hist-sub">${r.buseta} · ${r.taller}</div></div>
+      <div class="hist-right">
+        <div class="hist-cost">${fmtFull(r.costo)}</div>
+        <div class="hist-date">${r.fecha}</div>
+        <button onclick="event.stopPropagation();abrirEditarManto(${r.id})" style="margin-top:6px;font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;">Editar</button>
+      </div></div>
+      ${fotos}
+    </div>`;
+  }).join('');
+}
+
+// ── DETALLE ───────────────────────────────────────────────────────────────────
+function verDetalle(id){
+  const r=registros.find(x=>x.id===id); if(!r) return;
+  document.getElementById('det-title').textContent=r.item;
+  const fotosHTML=r.fotos&&r.fotos.length
+    ?`<div class="det-fotos">${r.fotos.map(src=>`<img class="det-foto" src="${src}" onclick="verFS('${src}')">`).join('')}</div>`:'';
+  document.getElementById('det-content').innerHTML=fotosHTML+
+    `<div class="det-row"><span>Buseta</span><span>${r.buseta}</span></div>
+     <div class="det-row"><span>Tipo</span><span>${r.tipo}</span></div>
+     <div class="det-row"><span>Fecha</span><span>${r.fecha}</span></div>
+     <div class="det-row"><span>Costo</span><span>${fmtFull(r.costo)}</span></div>
+     <div class="det-row"><span>Taller</span><span>${r.taller}</span></div>
+     ${r.proximo?`<div class="det-row"><span>Próximo servicio</span><span>${r.proximo}</span></div>`:''}
+     ${r.obs?`<div class="det-row"><span>Observaciones</span><span>${r.obs}</span></div>`:''}`;
+  document.getElementById('det-overlay').classList.add('open');
+}
+function cerrarDetalle(){ document.getElementById('det-overlay').classList.remove('open'); }
+
+// ── FOTO FULLSCREEN ────────────────────────────────────────────────────────────
+function verFS(src){ document.getElementById('fs-img').src=src; document.getElementById('fs-overlay').classList.add('open'); }
+function cerrarFS(){ document.getElementById('fs-overlay').classList.remove('open'); }
+
+// ── COSTOS ────────────────────────────────────────────────────────────────────
+function cargarCostos(){
+  const cfg=JSON.parse(localStorage.getItem('frr_costos')||'{}');
+  document.getElementById('c-viajes').value = cfg.viajes||3;
+  document.getElementById('c-dias').value   = cfg.dias||27;
+  document.getElementById('c-tarifa').value  = cfg.tarifa||500000;
+  renderTarifasInd(cfg.tarifasInd||{}, cfg.usaInd||false);
+}
+
+function guardarCostos(){
+  const cfg=JSON.parse(localStorage.getItem('frr_costos')||'{}');
+  cfg.viajes  = parseInt(document.getElementById('c-viajes').value)||3;
+  cfg.dias    = parseInt(document.getElementById('c-dias').value)||27;
+  cfg.tarifa  = parseInt(document.getElementById('c-tarifa').value)||0;
+  // guardar tarifas individuales si existen
+  const inds={};
+  busetas.forEach(b=>{
+    const el=document.getElementById('ct-'+b.id);
+    if(el) inds[b.id]=parseInt(el.value)||0;
+  });
+  if(Object.keys(inds).length) cfg.tarifasInd=inds;
+  localStorage.setItem('frr_costos', JSON.stringify(cfg));
+}
+
+function toggleTarifasInd(){
+  const cfg=JSON.parse(localStorage.getItem('frr_costos')||'{}');
+  cfg.usaInd=!cfg.usaInd;
+  localStorage.setItem('frr_costos', JSON.stringify(cfg));
+  renderTarifasInd(cfg.tarifasInd||{}, cfg.usaInd);
+  calcCPV();
+}
+
+function renderTarifasInd(tarifasInd, usaInd){
+  const wrap=document.getElementById('c-tarifas-ind');
+  if(!usaInd){ wrap.innerHTML=''; return; }
+  wrap.innerHTML=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Tarifa individual por buseta ($)</div>
+    ${busetas.map(b=>`
+      <div class="field-row" style="margin-bottom:8px;">
+        <div style="display:flex;align-items:center;padding:0 4px;font-size:13px;font-weight:600;color:var(--accent);">${b.id}</div>
+        <input type="number" id="ct-${b.id}" value="${tarifasInd[b.id]||500000}" oninput="guardarCostos();calcCPV()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;outline:none;width:100%;">
+      </div>`).join('')}
+  </div>`;
+}
+
+function calcCPV(){
+  const cfg=JSON.parse(localStorage.getItem('frr_costos')||'{}');
+  const viajes=parseInt(document.getElementById('c-viajes').value)||3;
+  const dias=parseInt(document.getElementById('c-dias').value)||27;
+  const tarifaGlobal=parseInt(document.getElementById('c-tarifa').value)||0;
+  const usaInd=cfg.usaInd||false;
+  const tarifasInd=cfg.tarifasInd||{};
+  const mes=new Date().toISOString().slice(0,7);
+  const tv=viajes*dias;
+
+  document.getElementById('cpv-busetas').innerHTML=busetas.map(b=>{
+    const tarifa=usaInd?(parseInt((document.getElementById('ct-'+b.id)||{}).value)||tarifasInd[b.id]||tarifaGlobal):tarifaGlobal;
+    const gasto=registros.filter(r=>r.buseta===b.id&&r.fecha.startsWith(mes)).reduce((s,r)=>s+r.costo,0);
+    const cpv=tv>0?Math.round(gasto/tv):0;
+    const margen=tarifa-cpv;
+    const mc=margen>=0?'var(--accent)':'var(--danger)';
+    const pct=tarifa>0?Math.min(100,Math.round(cpv/tarifa*100)):0;
+    return `<div class="cpv-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div style="font-size:12px;color:var(--text3);margin-bottom:4px">${b.id}</div>
+          <div class="cpv-big">${fmtFull(cpv)}</div>
+          <div class="cpv-label">costo por viaje · ${mes}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text3)">Margen/viaje</div>
+          <div style="font-size:20px;font-weight:600;color:${mc};font-family:'Courier New',Courier,monospace">${margen>=0?'+':''}${fmtFull(margen)}</div>
+        </div>
+      </div>
+      <div class="cpv-breakdown">
+        <div class="cpv-row2"><span>Gasto registrado mes</span><span>${fmtFull(gasto)}</span></div>
+        <div class="cpv-row2"><span>Viajes al mes (${viajes}×${dias})</span><span>${tv}</span></div>
+        <div class="divider"></div>
+        <div class="cpv-row2"><span>Tarifa por viaje</span><span>${fmtFull(tarifa)}</span></div>
+        <div class="cpv-row2"><span>Margen mes (esta buseta)</span><span style="color:${mc}">${margen>=0?'+':''}${fmtFull(margen*tv)}</span></div>
+        <div class="bar-wrap"><div class="bar-fill ${margen<0?'warn':''}" style="width:${pct}%"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Costo = ${pct}% de la tarifa</div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty"><p>Agrega busetas en Config.</p></div>';
+}
+
+// ── CONFIG BUSETAS ─────────────────────────────────────────────────────────────
+function renderConfig(){
+  document.getElementById('config-list').innerHTML=busetas.map((b,i)=>
+    `<div class="config-bus-item"><div style="flex:1"><div class="config-bus-num">${b.id}</div><div class="config-bus-model">${b.modelo}</div></div>
+    <div class="config-bus-actions">
+      <button class="icon-btn edit" onclick="abrirModalBusetaEditar(${i})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      <button class="icon-btn del" onclick="elimBuseta(${i})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+    </div></div>`
+  ).join('')||'<div class="empty"><p>Sin busetas registradas.</p></div>';
+}
+
+function abrirModalBuseta(){ document.getElementById('modal-buseta-title').textContent='Nueva buseta'; document.getElementById('m-editid').value=''; document.getElementById('m-nombre').value=''; document.getElementById('m-modelo').value=''; document.getElementById('modal-buseta').classList.add('open'); setTimeout(()=>document.getElementById('m-nombre').focus(),350); }
+function abrirModalBusetaEditar(i){ const b=busetas[i]; document.getElementById('modal-buseta-title').textContent='Editar buseta'; document.getElementById('m-editid').value=i; document.getElementById('m-nombre').value=b.id; document.getElementById('m-modelo').value=b.modelo; document.getElementById('modal-buseta').classList.add('open'); }
+function guardarBuseta(){
+  const nombre=document.getElementById('m-nombre').value.trim();
+  const modelo=document.getElementById('m-modelo').value.trim()||'Buseta';
+  if(!nombre){ toast('Ingresa el nombre'); return; }
+  const ei=document.getElementById('m-editid').value;
+  if(ei!==''){
+    const i=parseInt(ei), old=busetas[i].id;
+    busetas[i]={id:nombre,modelo};
+    registros.forEach(r=>{ if(r.buseta===old) r.buseta=nombre; }); saveRegistros();
+    toast('Buseta actualizada');
+  } else {
+    if(busetas.find(b=>b.id===nombre)){ toast('Ya existe esa buseta'); return; }
+    busetas.push({id:nombre,modelo}); toast('Buseta agregada');
+  }
+  saveBusetas(); cerrarModal('modal-buseta'); renderConfig(); renderDashboard(); refreshSelects();
+}
+function elimBuseta(i){ if(!confirm(`¿Eliminar ${busetas[i].id}?`)) return; busetas.splice(i,1); saveBusetas(); renderConfig(); renderDashboard(); refreshSelects(); toast('Buseta eliminada'); }
+
+// ── CONFIG ÍTEMS ───────────────────────────────────────────────────────────────
+function renderItemsConfig(){
+  const todos=todosItems();
+  document.getElementById('items-config-list').innerHTML=todos.map((it,i)=>{
+    const esDefault=i<ITEMS_DEFAULT.length;
+    return `<div class="item-list-item"><span class="item-list-name">${it}</span>
+      ${esDefault?`<span class="item-list-badge">Base</span>`:`<span class="item-list-badge custom" style="cursor:pointer" onclick="elimItem(${i-ITEMS_DEFAULT.length})">Eliminar</span>`}
+    </div>`;
+  }).join('');
+}
+
+function abrirModalItem(){ document.getElementById('m-item-nombre').value=''; document.getElementById('modal-item').classList.add('open'); setTimeout(()=>document.getElementById('m-item-nombre').focus(),350); }
+function guardarItem(){
+  const nombre=document.getElementById('m-item-nombre').value.trim();
+  if(!nombre){ toast('Ingresa el nombre'); return; }
+  if(todosItems().includes(nombre)){ toast('Ya existe ese ítem'); return; }
+  itemsExtra.push(nombre); saveItems(); refreshSelects(); renderItemsConfig();
+  cerrarModal('modal-item'); toast('Ítem agregado ✓');
+}
+function elimItem(i){ itemsExtra.splice(i,1); saveItems(); refreshSelects(); renderItemsConfig(); toast('Ítem eliminado'); }
+
+// ── MODALES ────────────────────────────────────────────────────────────────────
+function cerrarModal(id){ document.getElementById(id).classList.remove('open'); }
+function cerrarSi(e,id){ if(e.target===document.getElementById(id)) cerrarModal(id); }
+
+// ── SEGUIMIENTO MENSUAL ────────────────────────────────────────────────────────
+function refreshSegSelects(){
+  const sb=document.getElementById('seg-buseta');
+  sb.innerHTML=busetas.map(b=>`<option value="${b.id}">${b.id}</option>`).join('');
+  if(!document.getElementById('seg-mes').value){
+    document.getElementById('seg-mes').value=new Date().toISOString().slice(0,7);
+  }
+}
+
+function renderSeguimiento(){
+  const buseta=document.getElementById('seg-buseta').value;
+  const mes=document.getElementById('seg-mes').value;
+  if(!buseta||!mes) return;
+
+  const regMes=registros.filter(r=>r.buseta===buseta&&r.fecha.startsWith(mes));
+  const totalGasto=regMes.reduce((s,r)=>s+r.costo,0);
+  const prev=regMes.filter(r=>r.tipo==='preventivo').length;
+  const corr=regMes.filter(r=>r.tipo==='correctivo').length;
+  const diasCorr=corr;
+  const disp=Math.max(0,((30-diasCorr)/30)*100);
+
+  // resumen KPIs
+  document.getElementById('seg-resumen').innerHTML=`
+    <div class="kpi-strip" style="margin-bottom:14px;">
+      <div class="kpi-box"><div class="kpi-label">Disponibilidad</div><div class="kpi-val ${disp>=90?'green':disp>=80?'warn':'red'}">${disp.toFixed(0)}%</div></div>
+      <div class="kpi-box"><div class="kpi-label">Gasto total</div><div class="kpi-val">${fmt(totalGasto)}</div></div>
+      <div class="kpi-box"><div class="kpi-label">Prev / Corr</div><div class="kpi-val">${prev}/${corr}</div></div>
+    </div>`;
+
+  // tabla de ítems
+  const todos=todosItems();
+  const filas=todos.map(item=>{
+    const regs=regMes.filter(r=>r.item===item);
+    const hecho=regs.length>0;
+    const gastoItem=regs.reduce((s,r)=>s+r.costo,0);
+    const tipo=regs.length?regs[0].tipo:'—';
+    const fecha=regs.length?regs[0].fecha:'—';
+    const tieneFotos=regs.some(r=>r.fotos&&r.fotos.length>0);
+    return {item,hecho,gastoItem,tipo,fecha,tieneFotos,regs};
+  });
+
+  const hechos=filas.filter(f=>f.hecho);
+  const pendientes=filas.filter(f=>!f.hecho);
+
+  const renderFila=(f)=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);">
+      <div style="width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;
+        background:${f.hecho?(f.tipo==='correctivo'?'rgba(224,85,85,0.15)':'rgba(0,212,160,0.15)'):'rgba(255,255,255,0.04)'};
+        color:${f.hecho?(f.tipo==='correctivo'?'var(--danger)':'var(--accent)'):'var(--text3)'};">
+        ${f.hecho
+          ?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+          :`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`
+        }
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:${f.hecho?'600':'400'};color:${f.hecho?'var(--text)':'var(--text3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.item}</div>
+        ${f.hecho?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">${f.fecha} · ${f.regs[0].taller}${f.tieneFotos?' · 📷':''}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${f.hecho
+          ?`<div style="font-size:13px;font-weight:600;font-family:'Courier New',Courier,monospace;color:${f.tipo==='correctivo'?'var(--danger)':'var(--text)'};">${f.gastoItem>0?fmtFull(f.gastoItem):'$0'}</div>
+             <button onclick="abrirEditarManto(${f.regs[0].id})" style="margin-top:4px;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;">Editar</button>`
+          :`<span style="font-size:10px;color:var(--text3);border:1px solid var(--border);border-radius:10px;padding:2px 8px;">Pendiente</span>`}
+      </div>
+    </div>`;
+
+  document.getElementById('seg-tabla').innerHTML=`
+    <div style="background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">
+        Realizados (${hechos.length})
+      </div>
+      ${hechos.length?hechos.map(renderFila).join(''):'<div style="font-size:13px;color:var(--text3);padding:10px 0;">Ningún ítem registrado este mes.</div>'}
+    </div>
+    <div style="background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">
+        Pendientes (${pendientes.length})
+      </div>
+      ${pendientes.map(renderFila).join('')}
+    </div>`;
+}
+
+// ── SEGUIMIENTO MENSUAL ──────────────────────────────────────────────────────
+
+// ── ALERTAS ───────────────────────────────────────────────────────────────────
+function getAlertas(){
+  const alertas=[], hoy=new Date(); hoy.setHours(0,0,0,0);
+  // Próximos servicios por fecha registrada en cada mantenimiento
+  const vistos=new Set();
+  registros.forEach(r=>{
+    if(!r.proximo) return;
+    const key=`${r.buseta}||${r.item}`;
+    // Solo el registro más reciente por buseta+item
+    if(vistos.has(key)) return;
+    vistos.add(key);
+    const proxDate=new Date(r.proximo); proxDate.setHours(0,0,0,0);
+    const diff=Math.floor((proxDate-hoy)/86400000);
+    if(diff<0){
+      alertas.push({buseta:r.buseta,item:r.item,msg:`Vencido hace ${Math.abs(diff)} día${Math.abs(diff)!==1?'s':''}`,nivel:'rojo',diff,fecha:r.proximo,regId:r.id});
+    } else if(diff===0){
+      alertas.push({buseta:r.buseta,item:r.item,msg:'Vence hoy',nivel:'rojo',diff,fecha:r.proximo,regId:r.id});
+    } else if(diff<=7){
+      alertas.push({buseta:r.buseta,item:r.item,msg:`Vence en ${diff} día${diff!==1?'s':''}`,nivel:'rojo',diff,fecha:r.proximo,regId:r.id});
+    } else if(diff<=15){
+      alertas.push({buseta:r.buseta,item:r.item,msg:`Vence en ${diff} días`,nivel:'warn',diff,fecha:r.proximo,regId:r.id});
+    }
+  });
+  return alertas.sort((a,b)=>a.diff-b.diff);
+}
+
+function actualizarBadge(){
+  const alertas=getAlertas();
+  const ab=document.getElementById('alert-badge');
+  const dot=document.getElementById('nav-alert-dot');
+  const rojas=alertas.filter(a=>a.nivel==='rojo').length;
+  ab.textContent=alertas.length+(alertas.length===1?' alerta':' alertas');
+  ab.style.background=rojas>0?'#e05555':alertas.length>0?'#f5a623':'var(--accent)';
+  if(dot){ dot.style.display=alertas.length>0?'block':'none'; }
+}
+
+function renderAlertas(){
+  actualizarBadge();
+  const alertas=getAlertas();
+  const cont=document.getElementById('alertas-lista');
+
+  // Botón de notificaciones
+  const nw=document.getElementById('notif-btn-wrap');
+  if(typeof Notification!=='undefined'){
+    if(Notification.permission==='granted'){
+      nw.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,160,0.08);border:1px solid rgba(0,212,160,0.2);border-radius:var(--radius-sm);padding:10px 14px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span style="font-size:13px;color:var(--accent);font-weight:500;">Notificaciones activadas</span>
+      </div>`;
+    } else if(Notification.permission==='denied'){
+      nw.innerHTML=`<div style="background:rgba(224,85,85,0.08);border:1px solid rgba(224,85,85,0.2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:var(--danger);">Notificaciones bloqueadas. Actívalas en los ajustes del navegador.</div>`;
+    } else {
+      nw.innerHTML=`<button class="btn-primary" onclick="pedirNotificaciones()" style="margin-top:0;">Activar notificaciones del celular</button>`;
+    }
+  } else {
+    nw.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:8px 0;">Tu navegador no soporta notificaciones push.</div>`;
+  }
+
+  if(!alertas.length){
+    cont.innerHTML=`<div style="background:var(--card);border-radius:var(--radius);padding:24px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:10px;">✓</div>
+      <div style="font-size:15px;font-weight:600;color:var(--accent);margin-bottom:6px;">Todo al día</div>
+      <div style="font-size:13px;color:var(--text3);">No hay servicios vencidos ni próximos a vencer.</div>
+    </div>`;
+    return;
+  }
+
+  cont.innerHTML=alertas.map(a=>{
+    const esRojo=a.nivel==='rojo';
+    const color=esRojo?'var(--danger)':'var(--warn)';
+    const bgColor=esRojo?'rgba(224,85,85,0.08)':'rgba(245,166,35,0.08)';
+    const borderColor=esRojo?'rgba(224,85,85,0.25)':'rgba(245,166,35,0.25)';
+    return `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);">${a.item}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Buseta ${a.buseta}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;font-weight:600;color:${color};">${a.msg}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Fecha: ${a.fecha}</div>
+        </div>
+      </div>
+      <button onclick="abrirEditarManto(${a.regId})" style="width:100%;padding:8px;border-radius:8px;border:1px solid ${borderColor};background:transparent;color:${color};font-size:12px;font-weight:600;cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;">
+        Registrar nuevo servicio / actualizar fecha
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function pedirNotificaciones(){
+  if(typeof Notification==='undefined'){ toast('Tu navegador no soporta notificaciones'); return; }
+  Notification.requestPermission().then(perm=>{
+    if(perm==='granted'){
+      toast('Notificaciones activadas ✓');
+      programarNotificaciones();
+      renderAlertas();
+    } else {
+      toast('Permiso denegado');
+      renderAlertas();
+    }
+  });
+}
+
+function programarNotificaciones(){
+  if(typeof Notification==='undefined'||Notification.permission!=='granted') return;
+  const alertas=getAlertas();
+  alertas.forEach(a=>{
+    if(a.diff<=0){
+      new Notification('FlotaFRR — Servicio vencido', {body:`${a.buseta}: ${a.item} — ${a.msg}`,tag:`frr-${a.buseta}-${a.item}`});
+    } else if(a.diff<=7){
+      new Notification('FlotaFRR — Servicio próximo', {body:`${a.buseta}: ${a.item} vence en ${a.diff} día${a.diff!==1?'s':''}`,tag:`frr-${a.buseta}-${a.item}`});
+    }
+  });
+}
+
+// ── HISTORIAL POR ÍTEM ────────────────────────────────────────────────────────
+function refreshIHSelects(){
+  document.getElementById('ih-buseta').innerHTML = busetas.map(b=>`<option value="${b.id}">${b.id}</option>`).join('');
+  document.getElementById('ih-item').innerHTML = todosItems().map(it=>`<option value="${it}">${it}</option>`).join('');
+}
+
+function renderItemHist(){
+  const buseta = document.getElementById('ih-buseta').value;
+  const item   = document.getElementById('ih-item').value;
+  if(!buseta || !item) return;
+
+  const regs = registros
+    .filter(r => r.buseta === buseta && r.item === item)
+    .sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+  const totalCosto     = regs.reduce((s,r) => s + r.costo, 0);
+  const totalVeces     = regs.length;
+  const hoy            = new Date(); hoy.setHours(0,0,0,0);
+  const diasDesdeUltimo = regs.length ? Math.floor((hoy - new Date(regs[0].fecha)) / 86400000) : null;
+
+  // Intervalo promedio entre servicios
+  let intervaloPromedio = '—';
+  if(regs.length >= 2){
+    let totalDias = 0;
+    for(let i = 0; i < regs.length - 1; i++){
+      totalDias += Math.floor((new Date(regs[i].fecha) - new Date(regs[i+1].fecha)) / 86400000);
+    }
+    intervaloPromedio = Math.round(totalDias / (regs.length - 1)) + ' días';
+  }
+
+  document.getElementById('ih-resumen').innerHTML = `
+    <div class="kpi-strip" style="margin-bottom:14px;">
+      <div class="kpi-box"><div class="kpi-label">Veces realizado</div><div class="kpi-val ${totalVeces>0?'green':'red'}">${totalVeces}</div></div>
+      <div class="kpi-box"><div class="kpi-label">Costo total</div><div class="kpi-val">${fmt(totalCosto)}</div></div>
+      <div class="kpi-box"><div class="kpi-label">Último hace</div><div class="kpi-val ${diasDesdeUltimo===null?'red':diasDesdeUltimo>45?'warn':''}" style="font-size:14px;">${diasDesdeUltimo!==null?diasDesdeUltimo+' días':'—'}</div></div>
+    </div>
+    ${regs.length>=2?`<div style="background:var(--card);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;color:var(--text2);">Intervalo promedio entre servicios</span>
+      <span style="font-size:14px;font-weight:600;color:var(--accent);">${intervaloPromedio}</span>
+    </div>`:''}`;
+
+  if(!regs.length){
+    document.getElementById('ih-lista').innerHTML = `<div class="empty"><p>No hay registros de este ítem<br>para la buseta ${buseta}.</p></div>`;
+    return;
+  }
+
+  document.getElementById('ih-lista').innerHTML = `
+    <div style="background:var(--card);border-radius:var(--radius);overflow:hidden;">
+      ${regs.map((r,i) => {
+        const esPrev = r.tipo === 'preventivo';
+        const fotos  = r.fotos && r.fotos.length
+          ? `<div class="hist-fotos" style="margin-top:10px;">${r.fotos.map(src=>`<img class="hist-foto" src="${src}" onclick="verFS('${src}')">`).join('')}</div>` : '';
+
+        // Días desde el registro anterior (el siguiente en el array porque está ordenado desc)
+        let diasDesde = null;
+        if(i < regs.length - 1){
+          diasDesde = Math.floor((new Date(r.fecha) - new Date(regs[i+1].fecha)) / 86400000);
+        }
+        // Días desde este registro hasta hoy (solo el más reciente)
+        const diasHastaHoy = i === 0 ? Math.floor((hoy - new Date(r.fecha)) / 86400000) : null;
+
+        return `<div style="padding:14px 16px;${i>0?'border-top:1px solid var(--border)':''};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--text);">${r.fecha}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;">${r.taller}</div>
+              ${diasHastaHoy!==null?`<div style="font-size:11px;color:var(--accent);margin-top:3px;">Hace ${diasHastaHoy} días</div>`:''}
+              ${diasDesde!==null?`<div style="font-size:11px;color:var(--text3);margin-top:3px;">${diasDesde} días después del anterior</div>`:''}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:15px;font-weight:600;font-family:'Courier New',Courier,monospace;color:var(--text);">${fmtFull(r.costo)}</div>
+              <div style="font-size:11px;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-block;
+                background:${esPrev?'rgba(0,212,160,0.12)':'rgba(224,85,85,0.12)'};
+                color:${esPrev?'var(--accent)':'var(--danger)'};">${r.tipo}</div>
+              <div style="margin-top:6px;">
+                <button onclick="abrirEditarManto(${r.id})" style="font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);cursor:pointer;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;">Editar</button>
+              </div>
+            </div>
+          </div>
+          ${r.obs?`<div style="font-size:12px;color:var(--text3);font-style:italic;">${r.obs}</div>`:''}
+          ${r.proximo?`<div style="font-size:12px;color:var(--text3);margin-top:4px;">Próximo: <span style="color:var(--warn);font-weight:500;">${r.proximo}</span></div>`:''}
+          ${fotos}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── EDITAR MANTENIMIENTO ──────────────────────────────────────────────────────
+function abrirEditarManto(id){
+  const r=registros.find(x=>x.id===id); if(!r) return;
+  refreshSelects();
+  document.getElementById('em-id').value=id;
+  document.getElementById('em-buseta').value=r.buseta;
+  document.getElementById('em-tipo').value=r.tipo;
+  document.getElementById('em-item').value=r.item;
+  document.getElementById('em-fecha').value=r.fecha;
+  document.getElementById('em-costo').value=r.costo||'';
+  document.getElementById('em-taller').value=r.taller==='—'?'':r.taller;
+  document.getElementById('em-proximo').value=r.proximo||'';
+  document.getElementById('em-obs').value=r.obs||'';
+  document.getElementById('modal-edit-manto').classList.add('open');
+}
+
+function guardarEdicionManto(){
+  const id=parseInt(document.getElementById('em-id').value);
+  const idx=registros.findIndex(x=>x.id===id); if(idx<0) return;
+  const r=registros[idx];
+  r.buseta=document.getElementById('em-buseta').value;
+  r.tipo=document.getElementById('em-tipo').value;
+  r.item=document.getElementById('em-item').value;
+  r.fecha=document.getElementById('em-fecha').value;
+  r.costo=parseInt(document.getElementById('em-costo').value)||0;
+  r.taller=document.getElementById('em-taller').value||'—';
+  r.proximo=document.getElementById('em-proximo').value||'';
+  r.obs=document.getElementById('em-obs').value||'';
+  saveRegistros();
+  cerrarModal('modal-edit-manto');
+  toast('Registro actualizado ✓');
+  renderDashboard();
+  renderHistorial('todos');
+  renderHistChips();
+}
+
+function eliminarManto(){
+  const id=parseInt(document.getElementById('em-id').value);
+  if(!confirm('¿Eliminar este registro?')) return;
+  registros=registros.filter(x=>x.id!==id);
+  saveRegistros();
+  cerrarModal('modal-edit-manto');
+  toast('Registro eliminado');
+  renderDashboard();
+  renderHistorial('todos');
+}
+
+// ── EXPORTAR / IMPORTAR ───────────────────────────────────────────────────────
+function exportarDatos(){
+  const datos={version:1,fecha:new Date().toISOString(),busetas,registros,itemsExtra};
+  const blob=new Blob([JSON.stringify(datos,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`FlotaFRR_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('Datos exportados ✓');
+}
+
+function importarDatos(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const datos=JSON.parse(ev.target.result);
+      if(!datos.busetas||!datos.registros){mostrarMsgImport('Archivo no válido.',false);return;}
+      const nb=datos.busetas.length,nr=datos.registros.length,ni=(datos.itemsExtra||[]).length;
+      if(!confirm(`¿Restaurar datos?\n\n· ${nb} busetas\n· ${nr} registros\n· ${ni} ítems\n\nEsto reemplazará los datos actuales.`)){e.target.value='';return;}
+      busetas=datos.busetas; registros=datos.registros; itemsExtra=datos.itemsExtra||[];
+      saveBusetas(); saveRegistros(); saveItems();
+      refreshSelects(); refreshSegSelects();
+      renderDashboard(); renderConfig(); renderItemsConfig();
+      mostrarMsgImport(`Importado: ${nb} busetas, ${nr} registros.`,true);
+      toast('Datos importados ✓');
+    }catch(err){mostrarMsgImport('Error al leer el archivo.',false);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function mostrarMsgImport(msg,ok){
+  const el=document.getElementById('import-msg');
+  el.style.display='block';
+  el.style.background=ok?'rgba(0,212,160,0.1)':'rgba(224,85,85,0.1)';
+  el.style.color=ok?'var(--accent)':'var(--danger)';
+  el.textContent=msg;
+  setTimeout(()=>{el.style.display='none';},5000);
+}
+
+document.getElementById('f-fecha').valueAsDate=new Date();
+refreshSelects();
+cargarCostos();
+renderDashboard();
+// Lanzar notificaciones si ya tienen permiso
+setTimeout(()=>{ if(typeof programarNotificaciones==='function') programarNotificaciones(); }, 1000);
+</script>
+</body>
+</html>
