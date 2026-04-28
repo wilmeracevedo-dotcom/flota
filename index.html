@@ -26,25 +26,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .nav-item span{font-size:10px;font-weight:500;}
 .screen{display:none;}
 .screen.active{display:block;}
-@media(min-width:900px){
-  body{background:var(--bg2);}
-  #app{max-width:100%;flex-direction:row;height:100vh;}
-  .topbar{display:none;}
-  .nav{position:relative;width:230px;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:0;flex-shrink:0;background:var(--bg);justify-content:flex-start;height:100%;}
-  .nav::before{content:'FlotaFRR';display:block;font-size:22px;font-weight:600;color:var(--accent);padding:32px 24px 24px;border-bottom:1px solid var(--border);}
-  .nav-item{flex:none;flex-direction:row;gap:12px;padding:14px 24px;justify-content:flex-start;border-radius:0;width:100%;}
-  .nav-item svg{width:20px;height:20px;flex-shrink:0;}
-  .nav-item span{font-size:14px;font-weight:500;}
-  .nav-item.active{background:rgba(0,212,160,0.08);border-right:3px solid var(--accent);}
-  #nav-alert-dot{top:14px !important;right:16px !important;}
-  .scroll{padding:28px 36px 40px;overflow-y:auto;}
-  .scroll::-webkit-scrollbar{display:block;width:5px;}
-  .scroll::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
-  #vcards-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
-  .kpi-strip{grid-template-columns:repeat(3,minmax(0,1fr));}
-  .form-card{max-width:640px;}
-  .field-row{grid-template-columns:1fr 1fr;}
-}
 .sec-title{font-size:13px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px;}
 .kpi-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
 .kpi-box{background:var(--card);border-radius:var(--radius-sm);padding:12px 10px;}
@@ -185,11 +166,6 @@ input[type=file]#foto-input{display:none;}
   </div>
 
   <div class="scroll">
-    <!-- DESKTOP HEADER -->
-    <div id="desktop-header" style="display:none;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <div id="desktop-screen-title" style="font-size:22px;font-weight:600;color:var(--text);">Inicio</div>
-      <div id="alert-badge-desktop" onclick="goScreen('alertas',document.querySelector('[data-screen=alertas]')||{classList:{add:()=>{},remove:()=>{}}})" style="background:var(--accent);color:var(--bg);font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;">0 alertas</div>
-    </div>
 
     <!-- DASHBOARD -->
     <div class="screen active" id="screen-dashboard">
@@ -407,9 +383,11 @@ input[type=file]#foto-input{display:none;}
 <!-- MODAL ÍTEM -->
 <div class="modal-overlay" id="modal-item" onclick="cerrarSi(event,'modal-item')">
   <div class="modal">
-    <div class="modal-title">Nuevo ítem de mantenimiento</div>
+    <div class="modal-title" id="modal-item-title">Nuevo ítem</div>
+    <input type="hidden" id="m-item-edittype"> <!-- 'base' or 'extra' -->
+    <input type="hidden" id="m-item-editidx">
     <div class="field"><label>Nombre del ítem</label><input type="text" id="m-item-nombre" placeholder="Ej: Revisión de suspensión"></div>
-    <button class="btn-primary" onclick="guardarItem()">Agregar</button>
+    <button class="btn-primary" onclick="guardarItem()">Guardar</button>
     <button class="btn-ghost" onclick="cerrarModal('modal-item')">Cancelar</button>
   </div>
 </div>
@@ -433,123 +411,32 @@ input[type=file]#foto-input{display:none;}
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
-// ── FIREBASE ──────────────────────────────────────────────────────────────────
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBdjU-n9VUMUGVzcyKHf_S5HN11zKxjm0g",
-  authDomain: "flotafrr.firebaseapp.com",
-  projectId: "flotafrr",
-  storageBucket: "flotafrr.firebasestorage.app",
-  messagingSenderId: "326550546621",
-  appId: "1:326550546621:web:699dc4e7e9dda5e0fa2fd4"
-};
-
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
-const DOC = doc(db, 'flota', 'datos');
-
-// Exponer funciones de Firebase al scope global
-window.fbGuardar = async function(datos) {
-  try {
-    // Registros sin fotos para Firestore (fotos se quedan en localStorage por tamaño)
-    const registrosSinFotos = datos.registros.map(r => ({...r, fotos:[]}));
-    await setDoc(DOC, {
-      busetas: datos.busetas,
-      registros: registrosSinFotos,
-      itemsExtra: datos.itemsExtra,
-      updatedAt: new Date().toISOString()
-    });
-  } catch(e) { console.warn('Firebase save error:', e); }
-};
-
-window.fbEscuchar = function(callback) {
-  onSnapshot(DOC, (snap) => {
-    if(snap.exists()) {
-      const d = snap.data();
-      callback(d);
-    }
-  });
-};
-
-window.fbCargar = async function() {
-  try {
-    const snap = await getDoc(DOC);
-    if(snap.exists()) return snap.data();
-  } catch(e) { console.warn('Firebase load error:', e); }
-  return null;
-};
-
-// Iniciar escucha en tiempo real una vez que la app esté lista
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    if(typeof window.fbEscuchar === 'function') {
-      window.fbEscuchar((datos) => {
-        if(!datos) return;
-        // Solo actualizar si los datos de Firebase son más recientes
-        const local = localStorage.getItem('frr_updated') || '';
-        if(datos.updatedAt && datos.updatedAt > local) {
-          // Preservar fotos locales al mergear
-          const fotosMap = {};
-          (window._registros||[]).forEach(r => { if(r.fotos&&r.fotos.length) fotosMap[r.id]=r.fotos; });
-          window._busetas   = datos.busetas   || window._busetas;
-          window._itemsExtra= datos.itemsExtra|| window._itemsExtra;
-          window._registros = (datos.registros||[]).map(r => ({...r, fotos: fotosMap[r.id]||r.fotos||[]}));
-          localStorage.setItem('frr_busetas',   JSON.stringify(window._busetas));
-          localStorage.setItem('frr_registros', JSON.stringify(window._registros));
-          localStorage.setItem('frr_items',     JSON.stringify(window._itemsExtra));
-          localStorage.setItem('frr_updated',   datos.updatedAt);
-          // Refrescar UI
-          if(typeof renderDashboard==='function') renderDashboard();
-          if(typeof renderHistorial==='function') renderHistorial('todos');
-          window._showSyncToast && window._showSyncToast();
-        }
-      });
-    }
-  }, 2000);
-});
-</script>
-
 <script>
 // ── DATOS ─────────────────────────────────────────────────────────────────────
-const ITEMS_DEFAULT = ['Cambio de aceite y filtro','Revisión de frenos','Nivel de líquidos','Presión y estado de llantas','Revisión de batería','Filtro de aire','Correas (alternador/distribución)','Luces','Limpiabrisas y bocina','Motor','Transmisión','Sistema eléctrico'];
+let itemsBase = JSON.parse(localStorage.getItem('frr_items_base') || 'null') || ['Cambio de aceite y filtro','Revisión de frenos','Nivel de líquidos','Presión y estado de llantas','Revisión de batería','Filtro de aire','Correas (alternador/distribución)','Luces','Limpiabrisas y bocina','Motor','Transmisión','Sistema eléctrico'];
+function saveItemsBase(){ localStorage.setItem('frr_items_base', JSON.stringify(itemsBase)); }
 
 let busetas   = JSON.parse(localStorage.getItem('frr_busetas')   || 'null') || [{id:'642',modelo:'Buseta · 2018'},{id:'634',modelo:'Buseta · 2019'},{id:'680',modelo:'Buseta · 2020'}];
 let registros = JSON.parse(localStorage.getItem('frr_registros') || '[]');
 let itemsExtra = JSON.parse(localStorage.getItem('frr_items')    || '[]');
-let fotosTemp = [];
+let fotosTemp = []; // base64 fotos del form actual
 
-window._busetas=busetas; window._registros=registros; window._itemsExtra=itemsExtra;
-window._showSyncToast=function(){ toast('↔ Sincronizado con la nube'); };
+function saveBusetas(){ localStorage.setItem('frr_busetas', JSON.stringify(busetas)); }
+function saveRegistros(){ localStorage.setItem('frr_registros', JSON.stringify(registros)); }
+function saveItems(){ localStorage.setItem('frr_items', JSON.stringify(itemsExtra)); }
 
-function syncFirebase(){
-  const ts=new Date().toISOString();
-  localStorage.setItem('frr_updated',ts);
-  if(typeof window.fbGuardar==='function') window.fbGuardar({busetas,registros,itemsExtra});
-}
-function saveBusetas(){ localStorage.setItem('frr_busetas',JSON.stringify(busetas)); window._busetas=busetas; syncFirebase(); }
-function saveRegistros(){ localStorage.setItem('frr_registros',JSON.stringify(registros)); window._registros=registros; syncFirebase(); }
-function saveItems(){ localStorage.setItem('frr_items',JSON.stringify(itemsExtra)); window._itemsExtra=itemsExtra; syncFirebase(); }
-
-function todosItems(){ return [...ITEMS_DEFAULT, ...itemsExtra].sort((a,b)=>a.localeCompare(b,'es')); }
+function todosItems(){ return [...itemsBase, ...itemsExtra].sort((a,b)=>a.localeCompare(b,'es')); }
 
 function fmt(n){ if(n>=1000000) return '$'+(n/1000000).toFixed(1)+'M'; if(n>=1000) return '$'+Math.round(n/1000)+'k'; return '$'+Math.round(n).toLocaleString('es-CO'); }
 function fmtFull(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 
 // ── NAVEGACIÓN ─────────────────────────────────────────────────────────────────
-const SCREEN_TITLES={'dashboard':'Inicio','registrar':'Registrar','historial':'Historial','seguimiento':'Mensual','item-hist':'Por ítem','alertas':'Alertas','costos':'Costos','config':'Configuración'};
-
 function goScreen(name,el){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
-  if(el && el.classList) el.classList.add('active');
-  // Desktop header title
-  const dt=document.getElementById('desktop-screen-title');
-  if(dt) dt.textContent=SCREEN_TITLES[name]||'';
+  el.classList.add('active');
   if(name==='dashboard') renderDashboard();
   if(name==='historial'){ renderHistChips(); renderHistorial('todos'); }
   if(name==='alertas'){ renderAlertas(); }
@@ -859,24 +746,90 @@ function elimBuseta(i){ if(!confirm(`¿Eliminar ${busetas[i].id}?`)) return; bus
 
 // ── CONFIG ÍTEMS ───────────────────────────────────────────────────────────────
 function renderItemsConfig(){
-  const todos=todosItems();
-  document.getElementById('items-config-list').innerHTML=todos.map((it,i)=>{
-    const esDefault=i<ITEMS_DEFAULT.length;
-    return `<div class="item-list-item"><span class="item-list-name">${it}</span>
-      ${esDefault?`<span class="item-list-badge">Base</span>`:`<span class="item-list-badge custom" style="cursor:pointer" onclick="elimItem(${i-ITEMS_DEFAULT.length})">Eliminar</span>`}
+  const todos = todosItems();
+  document.getElementById('items-config-list').innerHTML = todos.map((it) => {
+    const idxBase  = itemsBase.indexOf(it);
+    const idxExtra = itemsExtra.indexOf(it);
+    const tipo = idxBase >= 0 ? 'base' : 'extra';
+    const idx  = idxBase >= 0 ? idxBase : idxExtra;
+    return `<div class="item-list-item">
+      <span class="item-list-name">${it}</span>
+      <div style="display:flex;gap:6px;">
+        <button onclick="abrirEditarItem('${tipo}',${idx},'${it.replace(/'/g,"\\'")}')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);cursor:pointer;font-family:'DM Sans',sans-serif;">Editar</button>
+        <button onclick="eliminarItem('${tipo}',${idx})" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid rgba(224,85,85,0.3);background:rgba(224,85,85,0.08);color:var(--danger);cursor:pointer;font-family:'DM Sans',sans-serif;">Eliminar</button>
+      </div>
     </div>`;
   }).join('');
 }
 
-function abrirModalItem(){ document.getElementById('m-item-nombre').value=''; document.getElementById('modal-item').classList.add('open'); setTimeout(()=>document.getElementById('m-item-nombre').focus(),350); }
+function abrirModalItem(){
+  document.getElementById('modal-item-title').textContent='Nuevo ítem';
+  document.getElementById('m-item-edittype').value='';
+  document.getElementById('m-item-editidx').value='';
+  document.getElementById('m-item-nombre').value='';
+  document.getElementById('modal-item').classList.add('open');
+  setTimeout(()=>document.getElementById('m-item-nombre').focus(),350);
+}
+
+function abrirEditarItem(tipo, idx, nombre){
+  document.getElementById('modal-item-title').textContent='Editar ítem';
+  document.getElementById('m-item-edittype').value=tipo;
+  document.getElementById('m-item-editidx').value=idx;
+  document.getElementById('m-item-nombre').value=nombre;
+  document.getElementById('modal-item').classList.add('open');
+  setTimeout(()=>document.getElementById('m-item-nombre').focus(),350);
+}
+
 function guardarItem(){
   const nombre=document.getElementById('m-item-nombre').value.trim();
   if(!nombre){ toast('Ingresa el nombre'); return; }
-  if(todosItems().includes(nombre)){ toast('Ya existe ese ítem'); return; }
-  itemsExtra.push(nombre); saveItems(); refreshSelects(); renderItemsConfig();
-  cerrarModal('modal-item'); toast('Ítem agregado ✓');
+  const tipo=document.getElementById('m-item-edittype').value;
+  const idx=parseInt(document.getElementById('m-item-editidx').value);
+
+  if(tipo==='base'){
+    // Editar ítem base
+    const viejo=itemsBase[idx];
+    itemsBase[idx]=nombre;
+    saveItemsBase();
+    // Actualizar registros que usaban el nombre viejo
+    registros.forEach(r=>{ if(r.item===viejo) r.item=nombre; });
+    saveRegistros();
+    toast('Ítem actualizado ✓');
+  } else if(tipo==='extra'){
+    const viejo=itemsExtra[idx];
+    itemsExtra[idx]=nombre;
+    saveItems();
+    registros.forEach(r=>{ if(r.item===viejo) r.item=nombre; });
+    saveRegistros();
+    toast('Ítem actualizado ✓');
+  } else {
+    // Nuevo ítem
+    if(todosItems().includes(nombre)){ toast('Ya existe ese ítem'); return; }
+    itemsExtra.push(nombre);
+    saveItems();
+    toast('Ítem agregado ✓');
+  }
+  cerrarModal('modal-item');
+  refreshSelects();
+  renderItemsConfig();
 }
-function elimItem(i){ itemsExtra.splice(i,1); saveItems(); refreshSelects(); renderItemsConfig(); toast('Ítem eliminado'); }
+
+function eliminarItem(tipo, idx){
+  const nombre = tipo==='base' ? itemsBase[idx] : itemsExtra[idx];
+  if(!confirm(`¿Eliminar el ítem "${nombre}"?\nLos registros existentes con este ítem no se borran.`)) return;
+  if(tipo==='base'){
+    itemsBase.splice(idx,1);
+    saveItemsBase();
+  } else {
+    itemsExtra.splice(idx,1);
+    saveItems();
+  }
+  refreshSelects();
+  renderItemsConfig();
+  toast('Ítem eliminado');
+}
+
+function elimItem(i){ eliminarItem('extra', i); }
 
 // ── MODALES ────────────────────────────────────────────────────────────────────
 function cerrarModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -994,13 +947,10 @@ function getAlertas(){
 function actualizarBadge(){
   const alertas=getAlertas();
   const ab=document.getElementById('alert-badge');
-  const abd=document.getElementById('alert-badge-desktop');
   const dot=document.getElementById('nav-alert-dot');
   const rojas=alertas.filter(a=>a.nivel==='rojo').length;
-  const txt=alertas.length+(alertas.length===1?' alerta':' alertas');
-  const bg=rojas>0?'#e05555':alertas.length>0?'#f5a623':'var(--accent)';
-  if(ab){ ab.textContent=txt; ab.style.background=bg; }
-  if(abd){ abd.textContent=txt; abd.style.background=bg; }
+  ab.textContent=alertas.length+(alertas.length===1?' alerta':' alertas');
+  ab.style.background=rojas>0?'#e05555':alertas.length>0?'#f5a623':'var(--accent)';
   if(dot){ dot.style.display=alertas.length>0?'block':'none'; }
 }
 
@@ -1263,17 +1213,7 @@ document.getElementById('f-fecha').valueAsDate=new Date();
 refreshSelects();
 cargarCostos();
 renderDashboard();
-
-// Desktop layout init
-function initDesktop(){
-  const isDesktop = window.innerWidth >= 900;
-  const dh = document.getElementById('desktop-header');
-  if(dh) dh.style.display = isDesktop ? 'flex' : 'none';
-  // Hide mobile topbar on desktop (already done via CSS)
-}
-initDesktop();
-window.addEventListener('resize', initDesktop);
-
+// Lanzar notificaciones si ya tienen permiso
 setTimeout(()=>{ if(typeof programarNotificaciones==='function') programarNotificaciones(); }, 1000);
 </script>
 </body>
