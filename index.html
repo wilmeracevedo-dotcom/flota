@@ -308,6 +308,26 @@ input[type=file]#foto-input{display:none;}
     </div>
 
     <!-- CONFIG -->
+    <!-- INVENTARIO -->
+    <div class="screen" id="screen-inventario">
+      <div class="sec-title">Inventario de repuestos</div>
+      <div id="inv-lista"></div>
+      <button class="btn-primary" onclick="abrirModalInv()">+ Agregar repuesto</button>
+      <div style="height:16px"></div>
+    </div>
+
+    <!-- PENDIENTES -->
+    <div class="screen" id="screen-pendientes">
+      <div class="sec-title">Mantenimientos por hacer</div>
+      <div class="form-card" style="padding:12px 14px;margin-bottom:10px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Buseta</label>
+          <select id="pend-buseta" onchange="renderPendientes()"></select>
+        </div>
+      </div>
+      <div id="pend-lista"></div>
+    </div>
+
     <div class="screen" id="screen-config">
       <div class="sec-title">Mis busetas</div>
       <div id="config-list"></div>
@@ -358,6 +378,14 @@ input[type=file]#foto-input{display:none;}
       <span>Alertas</span>
       <div id="nav-alert-dot" style="display:none;position:absolute;top:6px;right:calc(50% - 14px);width:8px;height:8px;border-radius:50%;background:var(--danger);"></div>
     </div>
+    <div class="nav-item" onclick="goScreen('inventario',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>Inventario</span>
+    </div>
+    <div class="nav-item" onclick="goScreen('pendientes',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Pendientes</span>
+    </div>
     <div class="nav-item" onclick="goScreen('costos',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       <span>Costos</span>
@@ -389,6 +417,28 @@ input[type=file]#foto-input{display:none;}
     <button class="btn-primary" onclick="guardarEdicionManto()">Guardar cambios</button>
     <button class="btn-ghost" style="color:var(--danger);border-color:rgba(224,85,85,0.3);" onclick="eliminarManto()">Eliminar registro</button>
     <button class="btn-ghost" onclick="cerrarModal('modal-edit-manto')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL INVENTARIO -->
+<div class="modal-overlay" id="modal-inv" onclick="cerrarSi(event,'modal-inv')">
+  <div class="modal">
+    <div class="modal-title" id="modal-inv-title">Agregar repuesto</div>
+    <input type="hidden" id="inv-edit-id">
+    <div class="field"><label>Nombre del repuesto</label><input type="text" id="inv-nombre" placeholder="Ej: Filtro de aceite"></div>
+    <div class="field-row">
+      <div class="field"><label>Cantidad</label><input type="number" id="inv-cantidad" min="0" placeholder="0"></div>
+      <div class="field"><label>Unidad</label>
+        <select id="inv-unidad">
+          <option>unidades</option><option>litros</option><option>galones</option>
+          <option>metros</option><option>pares</option><option>juegos</option><option>kg</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Cantidad mínima (alerta)</label><input type="number" id="inv-minimo" min="0" placeholder="0"></div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="inv-notas" placeholder="Ej: Para la 642"></div>
+    <button class="btn-primary" onclick="guardarRepuesto()">Guardar</button>
+    <button class="btn-ghost" onclick="cerrarModal('modal-inv')">Cancelar</button>
   </div>
 </div>
 
@@ -435,6 +485,69 @@ input[type=file]#foto-input{display:none;}
 
 <div class="toast" id="toast"></div>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBdjU-n9VUMUGVzcyKHf_S5HN11zKxjm0g",
+  authDomain: "flotafrr.firebaseapp.com",
+  projectId: "flotafrr",
+  storageBucket: "flotafrr.firebasestorage.app",
+  messagingSenderId: "326550546621",
+  appId: "1:326550546621:web:699dc4e7e9dda5e0fa2fd4"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const DOC = doc(db, 'flota', 'datos');
+
+window.fbGuardar = async function(datos) {
+  try {
+    const registrosSinFotos = datos.registros.map(r => ({...r, fotos:[]}));
+    await setDoc(DOC, {
+      busetas: datos.busetas,
+      registros: registrosSinFotos,
+      itemsExtra: datos.itemsExtra,
+      itemsBase: datos.itemsBase||[],
+      inventario: datos.inventario||[],
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e){ console.warn('Firebase save:', e); }
+};
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    onSnapshot(DOC, (snap) => {
+      if(!snap.exists()) return;
+      const d = snap.data();
+      const local = localStorage.getItem('frr_updated') || '';
+      if(d.updatedAt && d.updatedAt > local){
+        // Preservar fotos locales
+        const fotosMap = {};
+        (window._registros||[]).forEach(r => { if(r.fotos&&r.fotos.length) fotosMap[r.id]=r.fotos; });
+        if(d.busetas)    { window._busetas=d.busetas;       localStorage.setItem('frr_busetas',   JSON.stringify(d.busetas)); }
+        if(d.registros)  { window._registros=d.registros.map(r=>({...r,fotos:fotosMap[r.id]||[]})); localStorage.setItem('frr_registros', JSON.stringify(window._registros)); }
+        if(d.itemsExtra) { window._itemsExtra=d.itemsExtra; localStorage.setItem('frr_items',     JSON.stringify(d.itemsExtra)); }
+        if(d.itemsBase)  { localStorage.setItem('frr_items_base', JSON.stringify(d.itemsBase)); }
+        if(d.inventario) { localStorage.setItem('frr_inventario', JSON.stringify(d.inventario)); }
+        localStorage.setItem('frr_updated', d.updatedAt);
+        // Refrescar variables en memoria
+        try{
+          if(d.busetas)    window.busetas    = d.busetas;
+          if(d.registros)  window.registros  = window._registros;
+          if(d.itemsExtra) window.itemsExtra = d.itemsExtra;
+          if(d.inventario) window.inventario = d.inventario;
+          if(typeof renderDashboard==='function') renderDashboard();
+          if(typeof actualizarBadge==='function') actualizarBadge();
+          if(typeof toast==='function') toast('↔ Sincronizado');
+        }catch(e){}
+      }
+    });
+  }, 1500);
+});
+</script>
+
 <script>
 // ── DATOS ─────────────────────────────────────────────────────────────────────
 let itemsBase = JSON.parse(localStorage.getItem('frr_items_base') || 'null') || ['Cambio de aceite y filtro','Revisión de frenos','Nivel de líquidos','Presión y estado de llantas','Revisión de batería','Filtro de aire','Correas (alternador/distribución)','Luces','Limpiabrisas y bocina','Motor','Transmisión','Sistema eléctrico'];
@@ -443,11 +556,20 @@ function saveItemsBase(){ localStorage.setItem('frr_items_base', JSON.stringify(
 let busetas   = JSON.parse(localStorage.getItem('frr_busetas')   || 'null') || [{id:'642',modelo:'Buseta · 2018'},{id:'634',modelo:'Buseta · 2019'},{id:'680',modelo:'Buseta · 2020'}];
 let registros = JSON.parse(localStorage.getItem('frr_registros') || '[]');
 let itemsExtra = JSON.parse(localStorage.getItem('frr_items')    || '[]');
-let fotosTemp = []; // base64 fotos del form actual
+let fotosTemp = [];
 
-function saveBusetas(){ localStorage.setItem('frr_busetas', JSON.stringify(busetas)); }
-function saveRegistros(){ localStorage.setItem('frr_registros', JSON.stringify(registros)); }
-function saveItems(){ localStorage.setItem('frr_items', JSON.stringify(itemsExtra)); }
+window._busetas=busetas; window._registros=registros; window._itemsExtra=itemsExtra;
+
+function syncFirebase(){
+  const ts=new Date().toISOString();
+  localStorage.setItem('frr_updated',ts);
+  if(typeof window.fbGuardar==='function'){
+    window.fbGuardar({busetas,registros,itemsExtra,itemsBase,inventario});
+  }
+}
+function saveBusetas(){ localStorage.setItem('frr_busetas',JSON.stringify(busetas)); window._busetas=busetas; syncFirebase(); }
+function saveRegistros(){ localStorage.setItem('frr_registros',JSON.stringify(registros)); window._registros=registros; syncFirebase(); }
+function saveItems(){ localStorage.setItem('frr_items',JSON.stringify(itemsExtra)); window._itemsExtra=itemsExtra; syncFirebase(); }
 
 function todosItems(){ return [...itemsBase, ...itemsExtra].sort((a,b)=>a.localeCompare(b,'es')); }
 
@@ -456,7 +578,7 @@ function fmtFull(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 
 // ── NAVEGACIÓN ─────────────────────────────────────────────────────────────────
-const SCREEN_TITLES={'dashboard':'Inicio','registrar':'Registrar','historial':'Historial','seguimiento':'Mensual','item-hist':'Por ítem','alertas':'Alertas','costos':'Costos','config':'Configuración'};
+const SCREEN_TITLES={'dashboard':'Inicio','registrar':'Registrar','historial':'Historial','seguimiento':'Mensual','item-hist':'Por ítem','alertas':'Alertas','costos':'Costos','config':'Configuración','inventario':'Inventario de repuestos','pendientes':'Mantenimientos pendientes'};
 function goScreen(name,el){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -472,6 +594,8 @@ function goScreen(name,el){
   if(name==='costos'){ cargarCostos(); calcCPV(); }
   if(name==='config'){ renderConfig(); renderItemsConfig(); }
   if(name==='registrar'){ refreshSelects(); resetFotos(); }
+  if(name==='inventario'){ renderInventario(); }
+  if(name==='pendientes'){ refreshPendSelects(); renderPendientes(); }
 }
 
 // ── SELECTS ───────────────────────────────────────────────────────────────────
@@ -1196,6 +1320,157 @@ function eliminarManto(){
   toast('Registro eliminado');
   renderDashboard();
   renderHistorial('todos');
+}
+
+// ── INVENTARIO ────────────────────────────────────────────────────────────────
+let inventario = JSON.parse(localStorage.getItem('frr_inventario') || '[]');
+function saveInventario(){ localStorage.setItem('frr_inventario',JSON.stringify(inventario)); syncFirebase(); }
+
+function renderInventario(){
+  const cont = document.getElementById('inv-lista');
+  if(!inventario.length){
+    cont.innerHTML=`<div class="empty"><p>No hay repuestos registrados.<br>Agrega el primero.</p></div>`;
+    return;
+  }
+  cont.innerHTML = inventario.map((it,i) => {
+    const bajo = it.cantidad <= it.minimo;
+    const bg = bajo ? 'rgba(224,85,85,0.08)' : 'var(--card)';
+    const border = bajo ? '1px solid rgba(224,85,85,0.25)' : '0.5px solid var(--border)';
+    return `<div style="background:${bg};border:${border};border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);">${it.nombre}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">${it.notas||''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace;color:${bajo?'var(--danger)':'var(--accent)'};">${it.cantidad}</div>
+          <div style="font-size:11px;color:var(--text3);">${it.unidad}</div>
+          ${bajo?`<div style="font-size:10px;color:var(--danger);margin-top:2px;">⚠ Stock bajo</div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="ajustarCantidad(${i},-1)" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:18px;cursor:pointer;">−</button>
+        <button onclick="ajustarCantidad(${i},1)" style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);font-size:18px;cursor:pointer;">+</button>
+        <button onclick="abrirModalInv(${i})" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Editar</button>
+        <button onclick="eliminarRepuesto(${i})" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(224,85,85,0.3);background:transparent;color:var(--danger);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function ajustarCantidad(i, delta){
+  inventario[i].cantidad = Math.max(0, (inventario[i].cantidad||0) + delta);
+  saveInventario(); renderInventario();
+}
+
+function abrirModalInv(i){
+  document.getElementById('modal-inv-title').textContent = i===undefined ? 'Agregar repuesto' : 'Editar repuesto';
+  document.getElementById('inv-edit-id').value = i===undefined ? '' : i;
+  const it = i!==undefined ? inventario[i] : {};
+  document.getElementById('inv-nombre').value   = it.nombre||'';
+  document.getElementById('inv-cantidad').value = it.cantidad||'';
+  document.getElementById('inv-unidad').value   = it.unidad||'unidades';
+  document.getElementById('inv-minimo').value   = it.minimo||0;
+  document.getElementById('inv-notas').value    = it.notas||'';
+  document.getElementById('modal-inv').classList.add('open');
+  setTimeout(()=>document.getElementById('inv-nombre').focus(),350);
+}
+
+function guardarRepuesto(){
+  const nombre = document.getElementById('inv-nombre').value.trim();
+  if(!nombre){ toast('Ingresa el nombre'); return; }
+  const rep = {
+    nombre,
+    cantidad: parseInt(document.getElementById('inv-cantidad').value)||0,
+    unidad: document.getElementById('inv-unidad').value,
+    minimo: parseInt(document.getElementById('inv-minimo').value)||0,
+    notas: document.getElementById('inv-notas').value.trim(),
+  };
+  const editId = document.getElementById('inv-edit-id').value;
+  if(editId!=='') inventario[parseInt(editId)] = rep;
+  else inventario.push(rep);
+  saveInventario(); cerrarModal('modal-inv'); renderInventario();
+  toast(editId!==''?'Repuesto actualizado ✓':'Repuesto agregado ✓');
+}
+
+function eliminarRepuesto(i){
+  if(!confirm(`¿Eliminar "${inventario[i].nombre}"?`)) return;
+  inventario.splice(i,1); saveInventario(); renderInventario(); toast('Repuesto eliminado');
+}
+
+// ── PENDIENTES POR BUSETA ─────────────────────────────────────────────────────
+function refreshPendSelects(){
+  document.getElementById('pend-buseta').innerHTML = busetas.map(b=>`<option value="${b.id}">${b.id}</option>`).join('');
+}
+
+function renderPendientes(){
+  const buseta = document.getElementById('pend-buseta').value;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const cont = document.getElementById('pend-lista');
+
+  // Obtener el último registro por ítem para esta buseta
+  const ultimoPorItem = {};
+  registros.filter(r=>r.buseta===buseta).forEach(r=>{
+    if(!ultimoPorItem[r.item] || r.fecha > ultimoPorItem[r.item].fecha){
+      ultimoPorItem[r.item] = r;
+    }
+  });
+
+  // Construir lista de pendientes y próximos
+  const pendientes = [];
+  todosItems().forEach(item=>{
+    const ultimo = ultimoPorItem[item];
+    if(!ultimo){
+      pendientes.push({item, estado:'nunca', diff:null, fecha:null, regId:null});
+    } else if(ultimo.proximo){
+      const proxDate = new Date(ultimo.proximo); proxDate.setHours(0,0,0,0);
+      const diff = Math.floor((proxDate-hoy)/86400000);
+      if(diff <= 30){
+        pendientes.push({item, estado:diff<0?'vencido':diff===0?'hoy':'proximo', diff, fecha:ultimo.proximo, regId:ultimo.id});
+      }
+    }
+  });
+
+  if(!pendientes.length){
+    cont.innerHTML=`<div style="background:var(--card);border-radius:var(--radius);padding:24px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:10px;">✓</div>
+      <div style="font-size:15px;font-weight:600;color:var(--accent);margin-bottom:6px;">Todo al día</div>
+      <div style="font-size:13px;color:var(--text3);">No hay mantenimientos vencidos ni próximos en los próximos 30 días.</div>
+    </div>`;
+    return;
+  }
+
+  // Ordenar: vencidos primero, luego por días
+  pendientes.sort((a,b)=>{
+    if(a.diff===null) return 1;
+    if(b.diff===null) return -1;
+    return a.diff - b.diff;
+  });
+
+  cont.innerHTML = pendientes.map(p=>{
+    const esVencido = p.estado==='vencido';
+    const esHoy = p.estado==='hoy';
+    const esNunca = p.estado==='nunca';
+    const color = esVencido||esHoy ? 'var(--danger)' : esNunca ? 'var(--text3)' : 'var(--warn)';
+    const bg = esVencido||esHoy ? 'rgba(224,85,85,0.08)' : esNunca ? 'var(--card)' : 'rgba(245,166,35,0.08)';
+    const border = esVencido||esHoy ? '1px solid rgba(224,85,85,0.2)' : esNunca ? '0.5px solid var(--border)' : '1px solid rgba(245,166,35,0.2)';
+    const estadoTxt = esVencido ? `Vencido hace ${Math.abs(p.diff)} día${Math.abs(p.diff)!==1?'s':''}`
+      : esHoy ? 'Vence hoy'
+      : esNunca ? 'Nunca realizado'
+      : `Vence en ${p.diff} día${p.diff!==1?'s':''}`;
+    return `<div style="background:${bg};border:${border};border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">${p.item}</div>
+          ${p.fecha?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">Fecha: ${p.fecha}</div>`:''}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;font-weight:600;color:${color};">${estadoTxt}</div>
+          ${p.regId?`<button onclick="abrirEditarManto(${p.regId})" style="margin-top:6px;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid ${color};background:transparent;color:${color};cursor:pointer;font-family:'DM Sans',sans-serif;">Actualizar</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── EXPORTAR / IMPORTAR ───────────────────────────────────────────────────────
