@@ -326,6 +326,8 @@ input[type=file]#foto-input{display:none;}
         </div>
       </div>
       <div id="pend-lista"></div>
+      <button class="btn-primary" onclick="abrirModalPlan()">+ Agregar mantenimiento planificado</button>
+      <div style="height:16px"></div>
     </div>
 
     <div class="screen" id="screen-config">
@@ -417,6 +419,20 @@ input[type=file]#foto-input{display:none;}
     <button class="btn-primary" onclick="guardarEdicionManto()">Guardar cambios</button>
     <button class="btn-ghost" style="color:var(--danger);border-color:rgba(224,85,85,0.3);" onclick="eliminarManto()">Eliminar registro</button>
     <button class="btn-ghost" onclick="cerrarModal('modal-edit-manto')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL PLAN -->
+<div class="modal-overlay" id="modal-plan" onclick="cerrarSi(event,'modal-plan')">
+  <div class="modal">
+    <div class="modal-title" id="modal-plan-title">Mantenimiento planificado</div>
+    <input type="hidden" id="plan-edit-id">
+    <div class="field"><label>Buseta</label><select id="plan-buseta"></select></div>
+    <div class="field"><label>Ítem</label><select id="plan-item"></select></div>
+    <div class="field"><label>Fecha programada</label><input type="date" id="plan-fecha"></div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="plan-notas" placeholder="Ej: Llevar al taller El Progreso"></div>
+    <button class="btn-primary" onclick="guardarPlan()">Guardar</button>
+    <button class="btn-ghost" onclick="cerrarModal('modal-plan')">Cancelar</button>
   </div>
 </div>
 
@@ -564,7 +580,7 @@ function syncFirebase(){
   const ts=new Date().toISOString();
   localStorage.setItem('frr_updated',ts);
   if(typeof window.fbGuardar==='function'){
-    window.fbGuardar({busetas,registros,itemsExtra,itemsBase,inventario});
+    window.fbGuardar({busetas,registros,itemsExtra,itemsBase,inventario,planes});
   }
 }
 function saveBusetas(){ localStorage.setItem('frr_busetas',JSON.stringify(busetas)); window._busetas=busetas; syncFirebase(); }
@@ -1399,8 +1415,51 @@ function eliminarRepuesto(i){
 }
 
 // ── PENDIENTES POR BUSETA ─────────────────────────────────────────────────────
+let planes = JSON.parse(localStorage.getItem('frr_planes') || '[]');
+function savePlanes(){ localStorage.setItem('frr_planes', JSON.stringify(planes)); syncFirebase(); }
+
 function refreshPendSelects(){
   document.getElementById('pend-buseta').innerHTML = busetas.map(b=>`<option value="${b.id}">${b.id}</option>`).join('');
+}
+
+function abrirModalPlan(editId){
+  const buseta = document.getElementById('pend-buseta').value;
+  document.getElementById('plan-buseta').innerHTML = busetas.map(b=>`<option value="${b.id}" ${b.id===buseta?'selected':''}>${b.id}</option>`).join('');
+  document.getElementById('plan-item').innerHTML = todosItems().map(i=>`<option>${i}</option>`).join('');
+  document.getElementById('plan-edit-id').value = editId!==undefined ? editId : '';
+  if(editId!==undefined){
+    const p=planes[editId];
+    document.getElementById('plan-buseta').value=p.buseta;
+    document.getElementById('plan-item').value=p.item;
+    document.getElementById('plan-fecha').value=p.fecha;
+    document.getElementById('plan-notas').value=p.notas||'';
+  } else {
+    document.getElementById('plan-fecha').value='';
+    document.getElementById('plan-notas').value='';
+  }
+  document.getElementById('modal-plan').classList.add('open');
+}
+
+function guardarPlan(){
+  const fecha=document.getElementById('plan-fecha').value;
+  if(!fecha){ toast('Ingresa la fecha'); return; }
+  const plan={
+    buseta: document.getElementById('plan-buseta').value,
+    item:   document.getElementById('plan-item').value,
+    fecha,
+    notas:  document.getElementById('plan-notas').value.trim(),
+    id:     Date.now(),
+  };
+  const editId=document.getElementById('plan-edit-id').value;
+  if(editId!=='') planes[parseInt(editId)]=plan;
+  else planes.push(plan);
+  savePlanes(); cerrarModal('modal-plan');
+  renderPendientes(); toast('Planificado ✓');
+}
+
+function eliminarPlan(i){
+  if(!confirm('¿Eliminar este mantenimiento planificado?')) return;
+  planes.splice(i,1); savePlanes(); renderPendientes(); toast('Eliminado');
 }
 
 function renderPendientes(){
@@ -1408,65 +1467,63 @@ function renderPendientes(){
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const cont = document.getElementById('pend-lista');
 
-  // Obtener el último registro por ítem para esta buseta
+  // Pendientes desde registros (próximo servicio)
   const ultimoPorItem = {};
   registros.filter(r=>r.buseta===buseta).forEach(r=>{
-    if(!ultimoPorItem[r.item] || r.fecha > ultimoPorItem[r.item].fecha){
-      ultimoPorItem[r.item] = r;
-    }
+    if(!ultimoPorItem[r.item] || r.fecha > ultimoPorItem[r.item].fecha) ultimoPorItem[r.item]=r;
   });
-
-  // Construir lista de pendientes y próximos
   const pendientes = [];
   todosItems().forEach(item=>{
     const ultimo = ultimoPorItem[item];
-    if(!ultimo){
-      pendientes.push({item, estado:'nunca', diff:null, fecha:null, regId:null});
-    } else if(ultimo.proximo){
-      const proxDate = new Date(ultimo.proximo); proxDate.setHours(0,0,0,0);
-      const diff = Math.floor((proxDate-hoy)/86400000);
-      if(diff <= 30){
-        pendientes.push({item, estado:diff<0?'vencido':diff===0?'hoy':'proximo', diff, fecha:ultimo.proximo, regId:ultimo.id});
-      }
+    if(ultimo && ultimo.proximo){
+      const proxDate=new Date(ultimo.proximo); proxDate.setHours(0,0,0,0);
+      const diff=Math.floor((proxDate-hoy)/86400000);
+      if(diff<=30) pendientes.push({item,estado:diff<0?'vencido':diff===0?'hoy':'proximo',diff,fecha:ultimo.proximo,regId:ultimo.id,planId:null,notas:''});
+    }
+  });
+
+  // Pendientes planificados manualmente
+  planes.filter(p=>p.buseta===buseta).forEach((p,i)=>{
+    const proxDate=new Date(p.fecha); proxDate.setHours(0,0,0,0);
+    const diff=Math.floor((proxDate-hoy)/86400000);
+    // No duplicar si ya existe del registro
+    if(!pendientes.find(x=>x.item===p.item)){
+      pendientes.push({item:p.item,estado:diff<0?'vencido':diff===0?'hoy':'proximo',diff,fecha:p.fecha,regId:null,planId:i,notas:p.notas,esPlan:true});
     }
   });
 
   if(!pendientes.length){
     cont.innerHTML=`<div style="background:var(--card);border-radius:var(--radius);padding:24px;text-align:center;">
       <div style="font-size:32px;margin-bottom:10px;">✓</div>
-      <div style="font-size:15px;font-weight:600;color:var(--accent);margin-bottom:6px;">Todo al día</div>
-      <div style="font-size:13px;color:var(--text3);">No hay mantenimientos vencidos ni próximos en los próximos 30 días.</div>
+      <div style="font-size:15px;font-weight:600;color:var(--accent);margin-bottom:6px;">Sin pendientes</div>
+      <div style="font-size:13px;color:var(--text3);">Agrega mantenimientos planificados con el botón de abajo.</div>
     </div>`;
     return;
   }
 
-  // Ordenar: vencidos primero, luego por días
-  pendientes.sort((a,b)=>{
-    if(a.diff===null) return 1;
-    if(b.diff===null) return -1;
-    return a.diff - b.diff;
-  });
+  pendientes.sort((a,b)=>{ if(a.diff===null) return 1; if(b.diff===null) return -1; return a.diff-b.diff; });
 
   cont.innerHTML = pendientes.map(p=>{
-    const esVencido = p.estado==='vencido';
-    const esHoy = p.estado==='hoy';
-    const esNunca = p.estado==='nunca';
-    const color = esVencido||esHoy ? 'var(--danger)' : esNunca ? 'var(--text3)' : 'var(--warn)';
-    const bg = esVencido||esHoy ? 'rgba(224,85,85,0.08)' : esNunca ? 'var(--card)' : 'rgba(245,166,35,0.08)';
-    const border = esVencido||esHoy ? '1px solid rgba(224,85,85,0.2)' : esNunca ? '0.5px solid var(--border)' : '1px solid rgba(245,166,35,0.2)';
-    const estadoTxt = esVencido ? `Vencido hace ${Math.abs(p.diff)} día${Math.abs(p.diff)!==1?'s':''}`
-      : esHoy ? 'Vence hoy'
-      : esNunca ? 'Nunca realizado'
-      : `Vence en ${p.diff} día${p.diff!==1?'s':''}`;
+    const esVencido=p.estado==='vencido', esHoy=p.estado==='hoy';
+    const color=esVencido||esHoy?'var(--danger)':'var(--warn)';
+    const bg=esVencido||esHoy?'rgba(224,85,85,0.08)':'rgba(245,166,35,0.08)';
+    const border=esVencido||esHoy?'1px solid rgba(224,85,85,0.2)':'1px solid rgba(245,166,35,0.2)';
+    const estadoTxt=esVencido?`Vencido hace ${Math.abs(p.diff)} día${Math.abs(p.diff)!==1?'s':''}`
+      :esHoy?'Vence hoy':`Vence en ${p.diff} día${p.diff!==1?'s':''}`;
     return `<div style="background:${bg};border:${border};border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;min-width:0;">
           <div style="font-size:14px;font-weight:600;color:var(--text);">${p.item}</div>
-          ${p.fecha?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">Fecha: ${p.fecha}</div>`:''}
+          ${p.notas?`<div style="font-size:12px;color:var(--text3);margin-top:2px;">${p.notas}</div>`:''}
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Fecha: ${p.fecha} ${p.esPlan?'· <span style="color:var(--accent);">Planificado</span>':''}</div>
         </div>
-        <div style="text-align:right;">
+        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
           <div style="font-size:12px;font-weight:600;color:${color};">${estadoTxt}</div>
-          ${p.regId?`<button onclick="abrirEditarManto(${p.regId})" style="margin-top:6px;font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid ${color};background:transparent;color:${color};cursor:pointer;font-family:'DM Sans',sans-serif;">Actualizar</button>`:''}
+          <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">
+            ${p.esPlan?`<button onclick="abrirModalPlan(${p.planId})" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Editar</button>
+            <button onclick="eliminarPlan(${p.planId})" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid rgba(224,85,85,0.3);background:transparent;color:var(--danger);cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>`:''}
+            ${p.regId?`<button onclick="abrirEditarManto(${p.regId})" style="font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid rgba(0,212,160,0.3);background:rgba(0,212,160,0.08);color:var(--accent);cursor:pointer;font-family:'DM Sans',sans-serif;">Actualizar</button>`:''}
+          </div>
         </div>
       </div>
     </div>`;
